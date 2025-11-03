@@ -9,7 +9,9 @@ from cmbfscnn.utils import *
 from cmbfscnn.CMBFS import CMBFSCNN
 import matplotlib.pyplot as plt
 import os
+import matplotlib
 
+matplotlib.use('Agg')
 
 # -------------------------------------------------------------------------------------------------------
 # Set basic configuration
@@ -40,16 +42,17 @@ Sens_LiteBIRD = np.array([32.78,18.59,12.93,9.79,9.55,5.81,7.12,15.16,17.98,24.9
 output_beam_LiteBIRD =  28.9
 output_freq_LiteBIRD =  166
 
-nside = 512
+nside = 64
 save_data_dir = 'DATA/'
 save_result_dir = 'DATA_results/'
 
 
 # The number of samples for simulating sky maps
-N_sky_maps = [1000, 300, 300] # The sample sizes of sky map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
-N_noise_maps = [300, 300, 300] # The sample sizes of noise map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
+# N_sky_maps = [1000, 300, 300] # The sample sizes of sky map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
+N_sky_maps = [3, 2, 2] # The sample sizes of sky map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
+N_noise_maps = [2, 2, 2] # The sample sizes of noise map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
 is_half_split_map = True  # Do you use 'half-split maps' for testing? Our paper uses the 'half-split maps'.
-is_fullsky = False # Do you use a full-sky map for testing？As a tutorial, we use partial-sky ('block_0') for testing
+is_fullsky = True # Do you use a full-sky map for testing？As a tutorial, we use partial-sky ('block_-1') for testing
 # Training with a full-sky map requires a significant amount of GPU memory (>24GB), and it is recommended to use multiple GPUs for training.
 
 # For CMB experiments with high white noise levels, such as LiteBIRD, we set the expected output of CNN to use CMB+ILC noise. Thus, we need calculate ILC noise using ILC method.
@@ -59,8 +62,8 @@ using_ilc_cmbmap = False # Is ILC noise used as the expected noise output.
 
 is_polarization_data = True # Is polarization data used for testing? If false, the simulated data includes temperature and polarization.
 block_n = 'block_0' # The sky is divided into 12 blocks, and block 0 is selected for testing. Only valid for parameter is_fullsky = True
-dataset_type = ['traing_set', 'validation_set', 'testing_set'] # The dataset includes training, validation, and testing sets
-
+dataset_type = ['training_set', 'validation_set', 'testing_set'] # The dataset includes training, validation, and testing sets
+padding = False
 
 
 # -------------------------------------------------------------------------------------------------------
@@ -84,7 +87,7 @@ Data_parameters = {
     "is_polarization_data": is_polarization_data,
     'is_fullsky': is_fullsky,
     "block_n": block_n,
-    'padding': True,
+    'padding': padding,
     "dataset_type": dataset_type,
     "N_sky_maps": N_sky_maps,
     "N_noise_maps": N_noise_maps,
@@ -134,17 +137,27 @@ cmbfcnn.data_preprocessing()
 cmb = np.load(save_data_dir+'noiseless/cmb/cmb0.npy')
 total = np.load(save_data_dir+'noiseless/total/total0.npy')
 print(cmb.shape, total.shape)
-hp.mollview(cmb[6,1,:], title="CMB Q map",cmap = plt.get_cmap(plt.cm.jet))
-hp.mollview(total[6,1,:], title="total Q map",cmap = plt.get_cmap(plt.cm.jet))
+hp.mollview(cmb[6,0,:], title="CMB Q map",cmap = plt.get_cmap(plt.cm.jet), max=10, min=-10, norm='hist')
+hp.mollview(total[6,0,:], title="total Q map",cmap = plt.get_cmap(plt.cm.jet), max=10, min=-10, norm='hist')
 plt.show()
+plt.savefig("DD.png")
 
 # plot
-total_block = np.load(save_data_dir+'observed_flat_block_map/training_set/total/total0.npy')
-total = np.load(save_data_dir+'observed_flat_map/training_set/total/total0.npy')
-plt.imshow(total_block[6,0,:], cmap=plt.cm.jet,vmin=-10,vmax=10)
-plt.imshow(total[0,0,:], cmap=plt.cm.jet,vmin=-10,vmax=10)
+
+# Clear the previous figure
+plt.clf()
+
+if is_fullsky:
+    total = np.load(save_data_dir+'observed_flat_map/training_set/total/total0.npy')
+    plt.imshow(total[6, 0, :], cmap=plt.cm.jet,vmin=-10,vmax=10)
+else:
+    total_block = np.load(save_data_dir+'observed_flat_block_map/training_set/total/total0.npy')
+    plt.imshow(total_block[6,0,:], cmap=plt.cm.jet,vmin=-10,vmax=10)
+
 plt.show()
 
+plt.savefig("DD2.png")
+exit(0)
 
 # -------------------------------------------------------------------------------------------------------
 # Training CNN models

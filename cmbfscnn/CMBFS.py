@@ -49,7 +49,7 @@ class CMBFSCNN(object):
                 Sim_data.mult_process_get_ilc_noise(N_sample = self.N_sky_maps[k], N_mult = self.ILC_N_threads, out_freq = self.output_freq, mask = self.ilc_mask,
                                                     dataset_type=data_type)
             for k, data_type in enumerate(self.dataset_type):
-                if data_type == 'traing_set':
+                if data_type == 'training_set':
                     Sim_data.get_data_CMB_ilcnoise(index_sky_map=self.data_index[k],
                                                    index_ilcnoise_map=self.data_index[k],
                                                                                 dataset_type=data_type,

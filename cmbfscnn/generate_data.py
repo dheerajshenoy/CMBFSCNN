@@ -13,6 +13,7 @@ import os
 import sys
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
+multiprocessing.set_start_method('fork')
 
 train_config_random_one_05 = {'syn_spectralindex_random':(0.05, 'one'), 'syn_amplitude_random':(0, 'one'),
                            'dust_spectralindex_random':(0.05, 'one'), 'dust_amplitude_random':(0., 'one'),
@@ -165,13 +166,13 @@ class Simulator_data(object):
 
             pbar.update(1)
 
-    def simulator_noise_map(self, N_noise_map,  dataset_type = 'traing_set'):
+    def simulator_noise_map(self, N_noise_map,  dataset_type = 'training_set'):
         '''
         :param N_noise_map: The number of noise maps. An integer
         :param is_half_split_map: If it is an half-split map, the noise level will increase by sqrt(2) times
-        :param dataset_type: Noise in training, validation, and testing sets. dataset_type = 'traing_set' or 'validation_set' or 'testing_set'
+        :param dataset_type: Noise in training, validation, and testing sets. dataset_type = 'training_set' or 'validation_set' or 'testing_set'
         '''
-        if dataset_type == 'traing_set':
+        if dataset_type == 'training_set':
             self._creat_file(self.dir_noise_tra)
 
         elif dataset_type == 'validation_set':
@@ -189,12 +190,12 @@ class Simulator_data(object):
                 self._creat_file(self.dir_noise_tes)
 
         else:
-            print('An error occurred: Please set the dataset_type correctly. dataset_type = "traing_set" or "validation_set" or "testing_set"')
+            print('An error occurred: Please set the dataset_type correctly. dataset_type = "training_set" or "validation_set" or "testing_set"')
 
         pbar = tqdm(total = N_noise_map, miniters=2)
         pbar.set_description('Simulating white noise')
         for nn in range(N_noise_map):
-            if dataset_type == 'traing_set':
+            if dataset_type == 'training_set':
                 noise = self.__get_noise()
                 np.save(self.dir_noise_tra + 'noise' + str(nn) + '.npy', noise.astype(np.float32))
 
@@ -226,12 +227,12 @@ class Simulator_data(object):
             noise_idex = N_noise
         return N_sky_map, noise_idex
 
-    def get_observed_map(self, index_sky_map, index_noise_map, dataset_type = 'traing_set'):
+    def get_observed_map(self, index_sky_map, index_noise_map, dataset_type = 'training_set'):
         '''
         Add instrument noise to the sky maps
         :param index_sky_map: Index of sky map
         :param index_noise_map: Index of noise
-        :param dataset_type: Noise in training, validation, and testing sets. dataset_type = 'traing_set' or 'validation_set' or 'testing_set'
+        :param dataset_type: Noise in training, validation, and testing sets. dataset_type = 'training_set' or 'validation_set' or 'testing_set'
         :return:
         '''
         index_sky_map, index_noise_map = self.__map_index(index_sky_map, index_noise_map)
@@ -241,7 +242,7 @@ class Simulator_data(object):
             k, n = _
             cmb = np.load(self.dir_cmb+ 'cmb' + str(k) + '.npy')
             total = np.load(self.dir_total + 'total' + str(k) + '.npy')
-            if dataset_type == 'traing_set':
+            if dataset_type == 'training_set':
                 self._creat_file(self.dir_cmb_obs_tra)
                 self._creat_file(self.dir_total_obs_tra)
                 self._creat_file(self.dir_noise_tra_reshape)
@@ -286,7 +287,7 @@ class Simulator_data(object):
             pbar.update(1)
 
 
-    def run_ilc(self,N_samp, out_freq, mask=None, dataset_type = 'traing_set'):
+    def run_ilc(self,N_samp, out_freq, mask=None, dataset_type = 'training_set'):
         self.output_freq_index = np.where(self.freqs == out_freq)[0][0]
         import Utils_ILC as uilc
         beam = self.beams.tolist()
@@ -323,7 +324,7 @@ class Simulator_data(object):
         pbar = tqdm(total=len(N_samp))
         pbar.set_description('Executing ILC')
         for idx in N_samp:
-            if dataset_type == 'traing_set':
+            if dataset_type == 'training_set':
                 data_qu = np.load(self.dir_total_obs_tra + 'total' + str(idx) + '.npy')
                 noise = np.load(self.dir_noise_tra_reshape+'noise'+ str(idx) + '.npy')
                 resmap = __ilc(data_qu, noise)
@@ -402,7 +403,7 @@ class Simulator_data(object):
 
             pbar.update(1)
 
-    def mult_process_get_ilc_noise(self, N_sample, N_mult=10, out_freq=220, mask=None, dataset_type = 'traing_set'):
+    def mult_process_get_ilc_noise(self, N_sample, N_mult=10, out_freq=220, mask=None, dataset_type = 'training_set'):
         '''
         Multi threaded processing of ILC
         :param N_mult: Number of threads
@@ -424,7 +425,7 @@ class Simulator_data(object):
             process.start()
             process.join()
 
-    def get_data_CMB_ilcnoise(self,index_sky_map, index_ilcnoise_map, dataset_type = 'traing_set', out_beam=166):
+    def get_data_CMB_ilcnoise(self,index_sky_map, index_ilcnoise_map, dataset_type = 'training_set', out_beam=166):
         self.output_freq_index = np.where(self.beams == out_beam)[0][0]
         pbar = tqdm(total=len(index_sky_map), miniters=2)
         pbar.set_description('Adding ILC noise')
@@ -433,7 +434,7 @@ class Simulator_data(object):
             cmb = np.load(self.dir_cmb+ 'cmb' + str(k) + '.npy')[self.output_freq_index, :]
             # if not self.is_polarization_data:
             #     cmb = cmb[1:, :]
-            if dataset_type == 'traing_set':
+            if dataset_type == 'training_set':
                 noise = np.load(self.dir_noise_ILC_tra+'ilcnoise{}.npy'.format(n))
                 self._creat_file(self.dir_cmb_ilc_tra)
                 np.save(self.dir_cmb_ilc_tra+ 'cmb' + str(idx) + '.npy', (cmb + noise).astype(np.float32))
@@ -528,7 +529,7 @@ class Data_preprocessing(Simulator_data):
         pbar = tqdm(total=len(Nsample), miniters=1)
         pbar.set_description('Converting spherical full-sky map to planar map')
         for idx in Nsample:
-            if self.dataset_type == 'traing_set':
+            if self.dataset_type == 'training_set':
                 if self.using_ilc_cmbmap:
                     cmb_obs = np.load(self.dir_cmb_ilc_tra + 'cmb' + str(idx) + '.npy')
                 else:
@@ -669,7 +670,7 @@ class Data_preprocessing(Simulator_data):
                     np.save(self.dir_total_obs_flat_tes + 'total' + str(idx) + '.npy',
                             (total_obs_flat).astype(np.float32))
             else:
-                print('An error occurred: Please set the dataset_type correctly. dataset_type = "traing_set" or "validation_set" or "testing_set"')
+                print('An error occurred: Please set the dataset_type correctly. dataset_type = "training_set" or "validation_set" or "testing_set"')
             pbar.update(1)
 
 
@@ -677,7 +678,7 @@ class Data_preprocessing(Simulator_data):
         pbar = tqdm(total=len(Nsample), miniters=1)
         pbar.set_description('Converting spherical partial-sky map to planar map')
         for idx in Nsample:
-            if self.dataset_type == 'traing_set':
+            if self.dataset_type == 'training_set':
                 if self.using_ilc_cmbmap:
                     cmb_obs = np.load(self.dir_cmb_ilc_tra + 'cmb' + str(idx) + '.npy')
                 else:
@@ -797,10 +798,10 @@ class Data_preprocessing(Simulator_data):
                     np.save(self.dir_total_obs_flat_block_tes + 'total' + str(idx) + '.npy',
                             (total_obs_flat).astype(np.float32))
             else:
-                print('An error occurred: Please set the dataset_type correctly. dataset_type = "traing_set" or "validation_set" or "testing_set"')
+                print('An error occurred: Please set the dataset_type correctly. dataset_type = "training_set" or "validation_set" or "testing_set"')
             pbar.update(1)
 
-    def mult_process_get_flatmap_from_spheremap(self, N_mult, N_sample,   dataset_type = 'traing_set'):
+    def mult_process_get_flatmap_from_spheremap(self, N_mult, N_sample,   dataset_type = 'training_set'):
         '''
         Multithreaded data processing
         :param N_mult: Number of threads
@@ -808,8 +809,6 @@ class Data_preprocessing(Simulator_data):
         :return:
         '''
         self.dataset_type = dataset_type
-
-
 
         N_per = N_sample // N_mult
         N_lop = N_sample // N_per
@@ -828,7 +827,6 @@ class Data_preprocessing(Simulator_data):
         for process in processes:
             process.start()
             process.join()
-
 
     def sphere_map_from_fla_map_fullsky(self, piece_map):
 
