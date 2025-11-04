@@ -42,7 +42,7 @@ Sens_LiteBIRD = np.array([32.78,18.59,12.93,9.79,9.55,5.81,7.12,15.16,17.98,24.9
 output_beam_LiteBIRD =  28.9
 output_freq_LiteBIRD =  166
 
-nside = 32
+nside = 64
 save_data_dir = 'DATA/'
 save_result_dir = 'DATA_results/'
 
@@ -51,11 +51,11 @@ save_result_dir = 'DATA_results/'
 
 # The sample sizes of sky map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
 # N_sky_maps = [1200, 400, 400]
-N_sky_maps = [3, 3, 3]
+N_sky_maps = [1, 1, 1]
 
 # The sample sizes of noise map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
 # N_noise_maps = [1200, 400, 400]
-N_noise_maps = [3, 3, 3]
+N_noise_maps = [1, 1, 1]
 
 # Do you use 'half-split maps' for testing? Our paper uses the 'half-split maps'.
 is_half_split_map = True
@@ -148,13 +148,13 @@ plt.savefig("dd.png")
 
 plt.clf()
 
-if is_fullsky:
-    total = np.load(save_data_dir+'observed_flat_map/training_set/to{tal/total0.npy')
-    plt.imshow(total[6, 0, :], cmap=plt.cm.jet,vmin=-10,vmax=10)
-else:
-    total_block = np.load(save_data_dir+'observed_flat_block_map/training_set/total/total0.npy')
-    plt.imshow(total_block[6,0,:], cmap=plt.cm.jet,vmin=-10,vmax=10)
-plt.savefig("dd2.png")
+# if is_fullsky:
+#     total = np.load(save_data_dir+'observed_flat_map/training_set/to{tal/total0.npy')
+#     plt.imshow(total[6, 0, :], cmap=plt.cm.jet,vmin=-10,vmax=10)
+# else:
+#     total_block = np.load(save_data_dir+'observed_flat_block_map/training_set/total/total0.npy')
+#     plt.imshow(total_block[6,0,:], cmap=plt.cm.jet,vmin=-10,vmax=10)
+# plt.savefig("dd2.png")
 
 cmbfcnn.training_cnn()
 cmbfcnn.get_predicted_maps()
