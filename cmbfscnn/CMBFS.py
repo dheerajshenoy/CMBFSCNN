@@ -66,7 +66,6 @@ class CMBFSCNN(object):
         for k, data_type in enumerate(self.dataset_type):
             Data_prep.mult_process_get_flatmap_from_spheremap(N_mult = self.N_threads_preprocessing, N_sample = self.N_sky_maps[k], dataset_type = data_type)
 
-
     def _training_cnn(self, component = 'Q', using_loss_fft = True, repeat_n = 3):
         FSM_Qmap = Cmo.Foreground_subtraction_model(data_dir = self.save_data_dir, freqs = self.freqs, output_freq = self.output_freq,
                                                 component = component, full_sky_map = self.is_fullsky,
@@ -81,7 +80,6 @@ class CMBFSCNN(object):
     def training_cnn(self):
         for st in self.component:
             self._training_cnn(st)
-
 
     def get_predicted_maps(self):
         RA = Cmo.Result_analysis(data_dir = self.save_data_dir, full_sky_map = self.is_fullsky, map_block = self.block_n, padding = self.padding,

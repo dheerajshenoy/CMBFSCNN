@@ -11,7 +11,8 @@ import numpy as np
 from tqdm import tqdm
 import torch.nn as nn
 import matplotlib.pyplot as plt
-
+from torch.nn.parallel import DataParallel
+import platform
 
 class Foreground_subtraction_model(gd.Data_preprocessing):
     def __init__(self, data_dir='DATA/', freqs = np.array([]), output_freq = 220, component ="Q", full_sky_map = False,
@@ -156,6 +157,7 @@ class Foreground_subtraction_model(gd.Data_preprocessing):
         self._creat_file(self.records_dir)
         iteration = int(iteration)
         self.batch_size = batch_size
+
         if iteration<100:
             ns = 2
         elif iteration<1000:
@@ -164,7 +166,16 @@ class Foreground_subtraction_model(gd.Data_preprocessing):
             ns = 100
         elif iteration>10000:
             ns = 500
-        device = torch.device("cuda:{}".format(device_ids[0]) if torch.cuda.is_available() else "cpu")
+
+        if platform.system() == "Darwin":
+            device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+
+        elif platform.system() == "Linux" or platform.system() == "Windows":
+            device = torch.device("cuda:{}".format(device_ids[0]) if torch.cuda.is_available() else "cpu")
+
+        else:
+            device = torch.device("cpu")
+
         self.cnn_m(CNN_model)
         self._net = nn.DataParallel(self._net.to(device), device_ids=device_ids)
         optimizer = torch.optim.Adam(self._net.parameters(), lr=learning_rate, weight_decay=0)
@@ -173,20 +184,22 @@ class Foreground_subtraction_model(gd.Data_preprocessing):
         train_loss, valid_loss, train_MAD, valid_MAD, ite = [], [], [], [], []
         index_tra_samp = np.arange(num_train)
         index_val_samp = np.arange(num_validation)
+
         for ith_iteration in range(1, iteration + 1):
             input, target = self._load_batch_data(index_sample = index_tra_samp, data_tyep = 'training_set')
             input, target = input.to(device), target.to(device)
 
             for t in range(repeat_n):
                 out = self._net(input)
-
                 loss = self.loss_function(out, target,using_loss_fft = using_loss_fft)
                 optimizer.zero_grad()  #
                 loss.backward()  #
                 optimizer.step()  #
+
             new_lr = self.LrDecay(iteration=iteration, ith_iteration=ith_iteration, lr=learning_rate)
             optimizer.param_groups[0]['lr'] = new_lr
             pbar.update(1)
+
             if ith_iteration % ns == 0:
                 input_valid, target_valid = self._load_batch_data(index_sample = index_val_samp, data_tyep='validation_set')
                 input_valid = input_valid.to(device)
@@ -202,8 +215,7 @@ class Foreground_subtraction_model(gd.Data_preprocessing):
                 train_MAD.append(tra_MAD)
                 valid_MAD.append(val_MAD)
                 self._net.train()
-                print(
-                    "Iteration: [%d/%d] training loss: %.6f validation_loss: %.6f mean MAD in train set: %.6f mean MAD in valid set: %.6f " %
+                print("Iteration: [%d/%d] training loss: %.6f validation_loss: %.6f mean MAD in train set: %.6f mean MAD in valid set: %.6f " %
                     (ith_iteration + 1, iteration, loss.item(), val_loss.item(), tra_MAD, val_MAD))
 
                 torch.save(self._net, self.records_dir+'net_%s.pkl' % (ith_iteration))
@@ -215,20 +227,17 @@ class Foreground_subtraction_model(gd.Data_preprocessing):
         torch.save(self._net, self.records_dir + 'net.pkl')
         utils.save_pkl(tra_log, self.records_dir + 'train_log')
 
-
-    def _predictor(self, input_test, target_test, net = None):
+    def _predictor(self, input_test, target_test, net):
         net.eval()
-        out = net(input_test)
-        out = out.cpu()
-        out = torch.squeeze(out, 0)
-        out = torch.squeeze(out, 0).detach().numpy()
-        target_test = torch.squeeze(target_test, 0)
-        target_test = torch.squeeze(target_test, 0)
-        target_test = target_test.detach().numpy()
+        with torch.no_grad():
+            out = net(input_test)
+            out = out.cpu()
+            out = torch.squeeze(out, 0)
+            out = torch.squeeze(out, 0).detach().numpy()
+            target_test = torch.squeeze(target_test, 0)
+            target_test = torch.squeeze(target_test, 0)
+            target_test = target_test.detach().cpu().numpy()
         return out, target_test
-
-
-
 
     def plot_train_records(self, train_log = None, train_log_dir = None):
         if train_log is None:
@@ -279,7 +288,6 @@ class Foreground_subtraction_model(gd.Data_preprocessing):
         plt.savefig(self.records_dir+'plot_acc.png')
         # plt.show()
 
-
 class Result_analysis(Foreground_subtraction_model):
     def __init__(self, data_dir='DATA/',  full_sky_map = False, map_block = 'block_0', padding = True, using_ilc_cmbmap=False,
                  is_half_split_map=True, result_dir = 'DATA_results/',freqs = np.array([]),  output_freq = 220, nside=512):
@@ -297,11 +305,31 @@ class Result_analysis(Foreground_subtraction_model):
         self.nside = nside
         self._creat_file_n
 
+        if platform.system() == "Darwin":
+            self.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+        elif platform.system() == "Linux" or platform.system() == "Windows":
+            self.device = torch.device("cuda:{}".format(device_ids[0]) if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = torch.device("cpu")
 
     def predictor(self, net_dir, num_testset=300, comp='Q'):
 
         net_dir = net_dir + 'net.pkl'
-        net = torch.load(net_dir)
+        # Try to load the saved DataParallel model in a safe way. Newer
+        # PyTorch changed torch.load default for weights_only; the saved
+        # checkpoints in this repo are full objects wrapped in
+        # `nn.DataParallel`. Unpickling that requires allowlisting the
+        # DataParallel global. Use the safe_globals context manager and
+        # fall back to loading with weights_only=False if needed.
+        try:
+            from torch import serialization
+            with serialization.safe_globals([torch.nn.parallel.data_parallel.DataParallel]):
+                net = torch.load(net_dir, weights_only=True)
+        except Exception as e:
+            print("Warning: safe_globals load failed:", e)
+            print("Falling back to torch.load with weights_only=False (use only with trusted checkpoints).")
+            net = torch.load(net_dir, weights_only=False)
+            net = net.to(self.device)
         if self.is_half_split_map:
             pbar = tqdm(total=num_testset, miniters=1)
             pbar.set_description('Predicting the CMB {} map'.format(comp))
@@ -310,6 +338,8 @@ class Result_analysis(Foreground_subtraction_model):
                 input_test_1, target_test_1 = self._load_batch_data(index_sample=[n], data_tyep='testing_set', batch_size = 1, half_sp = 1, comp =comp)
                 input_test_2, target_test_2 = self._load_batch_data(index_sample=[n], data_tyep='testing_set',
                                                                      batch_size=1, half_sp=2, comp = comp)
+                input_test_1, target_test_1 = input_test_1.to(self.device), target_test_1.to(self.device)
+                input_test_2, target_test_2 = input_test_2.to(self.device), target_test_2.to(self.device)
                 if n==0:
                     out_1, target_1 = self._predictor(input_test_1, target_test_1, net)
                     out_2, target_2 = self._predictor(input_test_2, target_test_2, net)
@@ -330,6 +360,7 @@ class Result_analysis(Foreground_subtraction_model):
                 pbar.set_description('Predicting the CMB {} map'.format(comp))
                 input_test, target_test = self._load_batch_data(index_sample=[n], data_tyep='testing_set',
                                                                  batch_size=1,  comp=comp)
+                input_test, target_test = input_test.to(self.device), target_test.to(self.device)
                 if n == 0:
                     out, target = self._predictor(input_test, target_test, net)
                     out, target = out[None,:], target[None,:]
@@ -424,9 +455,6 @@ class Result_analysis(Foreground_subtraction_model):
             np.save(output_Tdir + 'true_cmb_T_map' + '.npy', (cmb[:, 0, :]).astype(np.float32))
             np.save(output_Qdir + 'true_cmb_Q_map' + '.npy', (cmb[:, 1, :]).astype(np.float32))
             np.save(output_Udir + 'true_cmb_U_map' + '.npy', (cmb[:, 2, :]).astype(np.float32))
-
-
-
 
 class Calculate_power_spectra(Result_analysis):
     def __init__(self,  result_dir = 'DATA_results/',is_half_split_map=True, component = 'Q',

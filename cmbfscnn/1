@@ -9,7 +9,6 @@ sys.path.append(BASE_DIR)
 # import pysm
 import astropy.units as u
 import pysm3
-from pysm3 import units as pysm_units
 # from pysm.nominal import models
 # from pysm.common import convert_units
 
@@ -21,60 +20,61 @@ def degrade_map(map_in, nside_in, nside_out):
     if nside_in == nside_out:
         return map_in
 
-    alm_i = hp.map2alm(map_in, pol=True)
+    map_out = []
 
-    # Check if alm has multiple components
-    if alm_i.ndim > 1:
-        alm_T_total = alm_i[0]  # Tomar la componente T
-        alm_E_total = alm_i[1]  # Tomar la componente E
-        alm_B_total = alm_i[2]  # Tomar la componente B
-    else:
-        raise ValueError("alm no tiene suficientes componentes para T, E y B")
+    for i in range(map_in.shape[0]):
+        map_i = map_in[i, :, :]
 
-    # Get lmax of the alm series
-    lmax_in_total = hp.Alm.getlmax(len(alm_T_total))
-    lmax_out_total = min(lmax_in_total, 3 * nside_out - 1)  # Limitado por nside_out
+        alm_i = hp.map2alm(map_i)
+        nside_out = self.Nside
 
-    # Get pixel window functions
-    pixwin_in = hp.pixwin(nside_in, pol=True)  # Incluye T, E y B
-    pixwin_out = hp.pixwin(nside_out, pol=True)  # Incluye T, E y B
+        # Verificar si alm tiene varias componentes
+        if alm_totali.ndim > 1:
+            alm_T_total = alm_totali[0]  # Tomar la componente T
+            alm_E_total = alm_totali[1]  # Tomar la componente E
+            alm_B_total = alm_totali[2]  # Tomar la componente B
+        else:
+            raise ValueError("alm no tiene suficientes componentes para T, E y B")
 
-    # Degrade alm for T, E, and B
-    alm_degraded_T_total = hp.almxfl(alm_T_total, 1.0 / pixwin_in[0][: lmax_in_total + 1])  # Remueve efecto de nside=2048
-    alm_out_T_total = hp.almxfl(alm_degraded_T_total, pixwin_out[0][: lmax_out_total + 1])    # Aplica efecto de nside=512
+        # Obtener lmax de la serie alm
+        lmax_in_total = hp.Alm.getlmax(len(alm_T_total))
+        lmax_out_total = min(lmax_in_total, 3 * nside_out - 1)  # Limitado por nside_out
 
-    alm_degraded_E_total = hp.almxfl(alm_E_total, 1.0 / pixwin_in[1][: lmax_in_total + 1])  # Remueve efecto de nside=2048
-    alm_out_E_total = hp.almxfl(alm_degraded_E_total, pixwin_out[1][: lmax_out_total + 1])    # Aplica efecto de nside=512
+        # Obtener funciones de ventana de píxeles
+        pixwin_2048 = hp.pixwin(nside_in, pol=True)  # Incluye T, E y B
+        pixwin_512 = hp.pixwin(nside_out, pol=True)  # Incluye T, E y B
 
-    alm_degraded_B_total = hp.almxfl(alm_B_total, 1.0 / pixwin_in[1][: lmax_in_total + 1])  # Remueve efecto de nside=2048
-    alm_out_B_total = hp.almxfl(alm_degraded_B_total, pixwin_out[1][: lmax_out_total + 1])    # Aplica efecto de nside=512
+        # Degradar alm para T, E y B
+        alm_degraded_T_total = hp.almxfl(alm_T_total, 1.0 / pixwin_2048[0][: lmax_in_total + 1])  # Remueve efecto de nside=2048
+        alm_out_T_total = hp.almxfl(alm_degraded_T_total, pixwin_512[0][: lmax_out_total + 1])    # Aplica efecto de nside=512
 
-    # Eng: Convert alm back to a single map combining T, E, and B at nside=512
-    return hp.alm2map([alm_out_T_total, alm_out_E_total, alm_out_B_total], nside=nside_out, pol=True)
+        alm_degraded_E_total = hp.almxfl(alm_E_total, 1.0 / pixwin_2048[1][: lmax_in_total + 1])  # Remueve efecto de nside=2048
+        alm_out_E_total = hp.almxfl(alm_degraded_E_total, pixwin_512[1][: lmax_out_total + 1])    # Aplica efecto de nside=512
 
-def process_sky(sky_total, sky_cmb, freqs, nside_fg, nside_exp, nside_out, beam=None):
+        alm_degraded_B_total = hp.almxfl(alm_B_total, 1.0 / pixwin_2048[1][: lmax_in_total + 1])  # Remueve efecto de nside=2048
+        alm_out_B_total = hp.almxfl(alm_degraded_B_total, pixwin_512[1][: lmax_out_total + 1])    # Aplica efecto de nside=512
+
+        # Convertir alm a un único mapa combinando T, E y B en nside=512
+        total_1.append(hp.alm2map([alm_out_T_total, alm_out_E_total, alm_out_B_total], nside=nside_out, pol=True))
+
+    return total
+
+
+def process_sky(sky_fg, cmb, freqs, nside_fg, nside_exp, nside_out, beam=None):
     """
     Generate total sky signal (CMB + foregrounds) with proper degradation and beam.
     """
 
     # ---- 1. Generate foreground emission ----
-    total = sky_total.get_emission(freqs * u.GHz)
-    cmb = sky_cmb.get_emission(freqs * u.GHz)
+    foreground = sky_fg.get_emission(freqs * u.GHz).value.astype(np.float32)
 
-    # 3. Convert everything to a consistent unit (default: µK_CMB)
-    for i, f in enumerate(freqs):
-        total[i] = total[i].to("uK_CMB", equivalencies=u.cmb_equivalencies(f * u.GHz))
-        cmb[i] = cmb[i].to("uK_CMB", equivalencies=u.cmb_equivalencies(f * u.GHz))
-
-    # 4. Convert to plain arrays
-    total = total.value
-    cmb = cmb.value
-
-
-    # ---- 2. Match total resolution to experiment resolution ----
+    # ---- 2. Match foreground resolution to experiment resolution ----
     if nside_fg != nside_exp:
         print(f"Degrading foreground from {nside_fg} to {nside_exp}")
-        foreground = np.array([degrade_map(total, nside_fg, nside_exp)])
+        foreground = np.array([degrade_map(f, nside_fg, nside_exp) for f in foreground])
+
+    # ---- 3. Combine with CMB ----
+    total = foreground + cmb
 
     # ---- 4. Match total and CMB to desired output Nside ----
     if nside_exp != nside_out:
@@ -82,9 +82,10 @@ def process_sky(sky_total, sky_cmb, freqs, nside_fg, nside_exp, nside_out, beam=
         total = np.array([degrade_map(t, nside_exp, nside_out) for t in total])
         cmb = np.array([degrade_map(c, nside_exp, nside_out) for c in cmb])
 
+
     # ---- 5. Convert units ----
-    # cmb = pysm_units.convert_unit(cmb, freqs, "uK_RJ", out_unit)
-    # total = pysm_units.convert_unit(total, freqs, "uK_RJ", out_unit)
+    # cmb = convert_unit(cmb, freqs, "uK_RJ", out_unit)
+    # total = convert_unit(total, freqs, "uK_RJ", out_unit)
 
         # ---- 6. Apply beam smoothing ----
     if beam is not None:
@@ -139,30 +140,34 @@ class Get_data(object):
         # random can be 'fixed', fix cosmological paramaters
 
         cmb_specs = ps.ParametersSampling(random=self.config_random['Random_types_of_cosmological_parameters'], spectra_type='unlensed_scalar')
-        sky_config_fg = ['s1', 'd1', 'a2']
+        sky = pysm3.Sky(nside=self.Nside, preset_strings=["s1", "d1", "a2"])
         self.Nside_fg = 2048
-        sky_fg = pysm3.Sky(nside = self.Nside_fg, preset_strings = sky_config_fg)  #
-        s1 = sky_fg.components[0]
-        d1 = sky_fg.components[1]
-        a2 = sky_fg.components[2]
+        s1 = sky.components[0]
+        d1 = sky.components[1]
+        a2 = sky.components[2]
         # s1 = models("s1", self.Nside)
         # d1 = models("d1", self.Nside)
         # a2 = models("a2", self.Nside)
-        # c2 = c2_mode(self.Nside)
-        # c2[0]['cmb_specs'] = cmb_specs
-        # c1_seed = self.config_random['cmb_seed']
-        # c2[0]['cmb_seed'] = c1_seed
-        #
-        # c2_unlens = c2_unlens_mode(self.Nside)
-        # cmb_spe = cmb_specs.copy()
-        # c2_unlens[0]['cmb_specs'] = cmb_spe
-        # c2_unlens[0]['cmb_seed'] = c1_seed
+        c2 = c2_mode(self.Nside)
+        c2[0]['cmb_specs'] = cmb_specs
+        c1_seed = self.config_random['cmb_seed']
+        c2[0]['cmb_seed'] = c1_seed
+
+        c2_unlens = c2_unlens_mode(self.Nside)
+        cmb_spe = cmb_specs.copy()
+        c2_unlens[0]['cmb_specs'] = cmb_spe
+        c2_unlens[0]['cmb_seed'] = c1_seed
 
         # TODO: Implement randomization
 
         sky_config_cmb = ["c2"]
+        sky_config_fg = ['s1', 'd1', 'a2']
 
+        sky_fg = pysm3.Sky(nside = self.Nside_fg, preset_strings = sky_config_fg)  #
         sky_cmb = pysm3.Sky(nside = self.Nside, preset_strings = sky_config_cmb)  #
+
+        total = sky.get_emission(self.freqs * u.GHz)
+        total = total.astype(np.float32)
 
         cmb = sky_cmb.get_emission(self.freqs * u.GHz)
         cmb = cmb.astype(np.float32)
@@ -187,7 +192,7 @@ class Get_data(object):
 
         # total = self.data_proce_beam(total, using_beam_1=self.using_beam, beam_1=self.beam)
         cmb, total = process_sky(sky_fg = sky_fg,
-                                 sky_cmb = sky_cmb,
+                                 cmb = cmb,
                                  freqs = self.freqs,
                                  nside_fg = self.Nside_fg,
                                  nside_exp = 512,
@@ -226,6 +231,6 @@ class Get_data(object):
         noise = np.random.randn(len(Sens), 3,npix)
         noise *= sigma_pix_I[:, None,None]
         if not self.out_unit ==None:
-            Uc_noise = np.array(pysm_units.convert_units("uK_CMB", self.out_unit, self.freqs))
+            Uc_noise = np.array(convert_units("uK_CMB", self.out_unit, self.freqs))
             noise = noise * Uc_noise[:, None, None]
         return noise.astype(np.float32)

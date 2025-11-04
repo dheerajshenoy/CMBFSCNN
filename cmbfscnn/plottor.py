@@ -11,12 +11,12 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 def plot_sphere_map(denoise_map, target_map, title=[], range=[], save_dir = '',N_sample= 0):
     residual_map = target_map - denoise_map
     fig = plt.figure(1, figsize=(18, 6))
-    cmap = plt.get_cmap(plt.cm.jet)
-    hp.mollview(target_map[N_sample,:], fig=fig.number, cmap=cmap, sub=(1, 3, 1),
+    CMAP = plt.cm.jet
+    hp.mollview(target_map[N_sample,:], fig=fig.number, cmap=CMAP, sub=(1, 3, 1),
                 unit=r'$\mathrm{\mu K}$',min=-1*range[0], max=range[0],title=title[0])
-    hp.mollview(denoise_map[N_sample,:], fig=fig.number, cmap=cmap, sub=(1, 3, 2),
+    hp.mollview(denoise_map[N_sample,:], fig=fig.number, cmap=CMAP, sub=(1, 3, 2),
                 unit=r'$\mathrm{\mu K}$', min=-1*range[1], max=range[1],title=title[1])
-    hp.mollview(residual_map[N_sample,:], fig=fig.number, cmap=cmap, sub=(1, 3, 3),
+    hp.mollview(residual_map[N_sample,:], fig=fig.number, cmap=CMAP, sub=(1, 3, 3),
                 unit=r'$\mathrm{\mu K}$',min=-1*range[2], max=range[2], title=title[2])
     plt.subplots_adjust(top=0.97, bottom=0.06, left=0.1, right=0.97, hspace=0.01, wspace=0)
     # if not save_dir == None:
@@ -77,7 +77,7 @@ def plot_EEBB_PS(ell, out_EE, tar_EE, out_BB, tar_BB, out_denoise_EE, true_EE, o
         ax1.set_ylabel('$D_{\ell}^{EE}$', fontsize=10)
         ax1.set_xlabel('$\ell$', fontsize=10)
         ax1.set_xlim(0, 1500)
-        ax1.legend(loc='upper left', fontsize=7)
+        ax1.legend(loc='lower right', fontsize=7)
 
         ax3 = axs[1, 0]
         ax3.plot(ell, tar_BB, label="Simulated noisy BB", c='k')
@@ -85,7 +85,7 @@ def plot_EEBB_PS(ell, out_EE, tar_EE, out_BB, tar_BB, out_denoise_EE, true_EE, o
         ax3.set_ylabel('$D_{\ell}^{BB}$', fontsize=10)
         ax3.set_xlabel('$\ell$', fontsize=10)
         ax3.set_xlim(0, 1500)
-        ax3.legend(loc='upper left', fontsize=7)
+        ax3.legend(loc='lower right', fontsize=7)
 
         ax2 = axs[0, 1]
         ax2.plot(ell, true_EE, label="True EE", c='k')
@@ -93,7 +93,7 @@ def plot_EEBB_PS(ell, out_EE, tar_EE, out_BB, tar_BB, out_denoise_EE, true_EE, o
         ax2.set_ylabel('$D_{\ell}^{EE}$', fontsize=10)
         ax2.set_xlabel('$\ell$', fontsize=10)
         ax2.set_xlim(0, 1500)
-        ax2.legend(loc='upper left', fontsize=7)
+        ax2.legend(loc='lower right', fontsize=7)
 
         ax4 = axs[1, 1]
         ax4.plot(ell, true_BB, label="True BB", c='k')
@@ -101,7 +101,7 @@ def plot_EEBB_PS(ell, out_EE, tar_EE, out_BB, tar_BB, out_denoise_EE, true_EE, o
         ax4.set_ylabel('$D_{\ell}^{BB}$', fontsize=10)
         ax4.set_xlabel('$\ell$', fontsize=10)
         ax4.set_xlim(0, 1500)
-        ax4.legend(loc='upper left', fontsize=7)
+        ax4.legend(loc='lower right', fontsize=7)
 
     # Plot 1:
     fig, axs = plt.subplots(2, 2)

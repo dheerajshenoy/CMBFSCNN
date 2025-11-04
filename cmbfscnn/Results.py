@@ -26,10 +26,11 @@ class Plot_results(Cm.Calculate_power_spectra):
             target_cmbQ = np.load(getattr(self, 'target_Q_dir'))
             pre_cmbU = np.load(getattr(self, 'output_U_dir'))
             target_cmbU = np.load(getattr(self, 'target_U_dir'))
+
         pt.plot_sphere_map(pre_cmbQ, target_cmbQ, title=['Simulated CMB Q map', 'Recovered CMB Q map', 'Residual'],
-                        range=[10, 10, 0.2],save_dir='recover_CMB_Q_map',N_sample=0)
+                        range=[2, 2, 0.2],save_dir='recover_CMB_Q_map',N_sample=0)
         pt.plot_sphere_map(pre_cmbU, target_cmbU, title=['Simulated CMB U map', 'Recovered CMB U map', 'Residual'],
-                        range=[10, 10, 0.2], save_dir='recover_CMB_U_map',N_sample=0)
+                        range=[2, 2, 0.2], save_dir='recover_CMB_U_map',N_sample=0)
 
     def plot_predicted_flat_map(self):
         if self.is_half_split_map:
@@ -43,8 +44,8 @@ class Plot_results(Cm.Calculate_power_spectra):
             pre_cmbU = np.load(getattr(self, 'output_Umap_dir') + 'predicted_CMB_U' + '_map.npy')
             target_cmbU = np.load(getattr(self, 'output_Umap_dir') + 'target_CMB_U' + '_map.npy')
         title1,title2 = ['Simulated CMB Q map', 'Recovered CMB Q map', 'Residual'], ['Simulated CMB U map', 'Recovered CMB U map', 'Residual']
-        pt.plot_image(pre_cmbQ, target_cmbQ, title1, N_sample=0, save_dir='recovered_CMB_flat_Qmap', range=[10,10,0.2])
-        pt.plot_image(pre_cmbU, target_cmbU, title1, N_sample=0, save_dir='recovered_CMB_flat_Umap', range=[10, 10, 0.2])
+        pt.plot_image(pre_cmbQ, target_cmbQ, title1, N_sample=0, save_dir='recovered_CMB_flat_Qmap', range=[2, 2, 0.2])
+        pt.plot_image(pre_cmbU, target_cmbU, title2, N_sample=0, save_dir='recovered_CMB_flat_Umap', range=[2, 2, 0.2])
 
     def plot_recovered_CMB_QU_PS(self,nlb=5):
         pre_cmbQ_ps = np.load(getattr(self, 'save_output_Q_dir_1').format(nlb))
