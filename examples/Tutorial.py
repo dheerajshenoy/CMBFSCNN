@@ -42,7 +42,7 @@ Sens_LiteBIRD = np.array([32.78,18.59,12.93,9.79,9.55,5.81,7.12,15.16,17.98,24.9
 output_beam_LiteBIRD =  28.9
 output_freq_LiteBIRD =  166
 
-nside = 64
+nside = 128
 save_data_dir = 'DATA/'
 save_result_dir = 'DATA_results/'
 
@@ -50,12 +50,12 @@ save_result_dir = 'DATA_results/'
 # The number of samples for simulating sky maps
 
 # The sample sizes of sky map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
-# N_sky_maps = [1200, 400, 400]
-N_sky_maps = [1, 1, 1]
+N_sky_maps = [1200, 400, 400]
+# N_sky_maps = [1, 1, 1]
 
 # The sample sizes of noise map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
-# N_noise_maps = [1200, 400, 400]
-N_noise_maps = [1, 1, 1]
+N_noise_maps = [1200, 400, 400]
+# N_noise_maps = [1, 1, 1]
 
 # Do you use 'half-split maps' for testing? Our paper uses the 'half-split maps'.
 is_half_split_map = True
@@ -116,7 +116,7 @@ ILC_parameters = {
 }
 
 Training_CNN_parameters = {
-    "iteration": 3e4,
+    "iteration": 3e2,
     "batch_size": 6,
     "learning_rate": 0.01,
     "device_ids": [0],
@@ -139,15 +139,27 @@ if using_ilc_cmbmap:
     cmbfcnn.cal_ilc_noise()
 cmbfcnn.data_preprocessing()
 
-cmb = np.load(save_data_dir+'noiseless/cmb/cmb0.npy')
-total = np.load(save_data_dir+'noiseless/total/total0.npy')
-hp.mollview(cmb[6,0,:], title="CMB Q map",cmap = plt.get_cmap(plt.cm.jet), max=10, min=-10, norm='hist')
-hp.mollview(total[6,0,:], title="total Q map",cmap = plt.get_cmap(plt.cm.jet), max=10, min=-10, norm='hist')
-plt.show()
-plt.savefig("dd.png")
-
-plt.clf()
-
+# cmb = np.load(save_data_dir+'noiseless/cmb/cmb0.npy')
+# total = np.load(save_data_dir+'noiseless/total/total0.npy')
+# hp.mollview(cmb[6,0,:], title="CMB Q map",cmap = plt.get_cmap(plt.cm.jet), max=10, min=-10, norm='hist')
+# plt.show()
+# plt.savefig("q_cmb.png")
+# plt.clf()
+# hp.mollview(total[6,0,:], title="total Q map",cmap = plt.get_cmap(plt.cm.jet), max=10, min=-10, norm='hist')
+# plt.show()
+# plt.savefig("q_total.png")
+# plt.show()
+#
+# plt.clf()
+#
+# hp.mollview(cmb[6,1,:], title="CMB U map",cmap = plt.get_cmap(plt.cm.jet), max=10, min=-10, norm='hist')
+# plt.show()
+# plt.savefig("u_cmb.png")
+# plt.clf()
+# hp.mollview(total[6,1,:], title="total U map",cmap = plt.get_cmap(plt.cm.jet), max=10, min=-10, norm='hist')
+# plt.show()
+# plt.savefig("u_total.png")
+#
 # if is_fullsky:
 #     total = np.load(save_data_dir+'observed_flat_map/training_set/to{tal/total0.npy')
 #     plt.imshow(total[6, 0, :], cmap=plt.cm.jet,vmin=-10,vmax=10)
