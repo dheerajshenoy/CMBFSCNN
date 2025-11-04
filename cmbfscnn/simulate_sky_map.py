@@ -9,9 +9,9 @@ sys.path.append(BASE_DIR)
 # import pysm
 import astropy.units as u
 import pysm3
-from pysm3 import units as pysm_units
+from pysm3 import units as pysm_units, utils
 # from pysm.nominal import models
-# from pysm.common import convert_units
+from pysm.common import convert_units
 
 from . import get_power_sperctra as ps
 
@@ -52,48 +52,6 @@ def degrade_map(map_in, nside_in, nside_out):
     # Eng: Convert alm back to a single map combining T, E, and B at nside=512
     return hp.alm2map([alm_out_T_total, alm_out_E_total, alm_out_B_total], nside=nside_out, pol=True)
 
-def process_sky(sky_total, sky_cmb, freqs, nside_fg, nside_exp, nside_out, beam=None):
-    """
-    Generate total sky signal (CMB + foregrounds) with proper degradation and beam.
-    """
-
-    # ---- 1. Generate foreground emission ----
-    total = sky_total.get_emission(freqs * u.GHz)
-    cmb = sky_cmb.get_emission(freqs * u.GHz)
-
-    # 3. Convert everything to a consistent unit (default: µK_CMB)
-    for i, f in enumerate(freqs):
-        total[i] = total[i].to("uK_CMB", equivalencies=u.cmb_equivalencies(f * u.GHz))
-        cmb[i] = cmb[i].to("uK_CMB", equivalencies=u.cmb_equivalencies(f * u.GHz))
-
-    # 4. Convert to plain arrays
-    total = total.value
-    cmb = cmb.value
-
-
-    # ---- 2. Match total resolution to experiment resolution ----
-    if nside_fg != nside_exp:
-        print(f"Degrading foreground from {nside_fg} to {nside_exp}")
-        foreground = np.array([degrade_map(total, nside_fg, nside_exp)])
-
-    # ---- 4. Match total and CMB to desired output Nside ----
-    if nside_exp != nside_out:
-        print(f"Degrading total and CMB from {nside_exp} to {nside_out}")
-        total = np.array([degrade_map(t, nside_exp, nside_out) for t in total])
-        cmb = np.array([degrade_map(c, nside_exp, nside_out) for c in cmb])
-
-    # ---- 5. Convert units ----
-    # cmb = pysm_units.convert_unit(cmb, freqs, "uK_RJ", out_unit)
-    # total = pysm_units.convert_unit(total, freqs, "uK_RJ", out_unit)
-
-        # ---- 6. Apply beam smoothing ----
-    if beam is not None:
-        cmb = beam(cmb)
-        total = beam(total)
-
-    return cmb.astype(np.float32), total.astype(np.float32)
-
-
 def c2_mode(nside):
     return [{
         'model' : 'taylens',
@@ -127,6 +85,7 @@ class Get_data(object):
     def __init__(self, Nside,  config_random = {}, freqs=None,  using_beam = False,
                   beam = None, out_unit = None):
         self.Nside = Nside
+        self.Nside_exp = 512
         self.Nside_fg = None
         self.freqs = freqs
         self.using_beam = using_beam
@@ -137,17 +96,14 @@ class Get_data(object):
 
     def data(self):
         # random can be 'fixed', fix cosmological paramaters
-
+        self.Nside_fg = 512
         cmb_specs = ps.ParametersSampling(random=self.config_random['Random_types_of_cosmological_parameters'], spectra_type='unlensed_scalar')
         sky_config_fg = ['s1', 'd1', 'a2']
-        self.Nside_fg = 2048
-        sky_fg = pysm3.Sky(nside = self.Nside_fg, preset_strings = sky_config_fg)  #
-        s1 = sky_fg.components[0]
-        d1 = sky_fg.components[1]
-        a2 = sky_fg.components[2]
-        # s1 = models("s1", self.Nside)
-        # d1 = models("d1", self.Nside)
-        # a2 = models("a2", self.Nside)
+        sky_config_cmb = ["c2"]
+        # s1 = sky_fg.components[0]
+        # d1 = sky_fg.components[1]
+        # a2 = sky_fg.components[2]
+
         # c2 = c2_mode(self.Nside)
         # c2[0]['cmb_specs'] = cmb_specs
         # c1_seed = self.config_random['cmb_seed']
@@ -158,51 +114,161 @@ class Get_data(object):
         # c2_unlens[0]['cmb_specs'] = cmb_spe
         # c2_unlens[0]['cmb_seed'] = c1_seed
 
+
         # TODO: Implement randomization
 
-        sky_config_cmb = ["c2"]
+        sky_cmb = pysm3.Sky(nside = self.Nside_exp, preset_strings = sky_config_cmb)
+        sky_fg = pysm3.Sky(nside = self.Nside_fg, preset_strings = sky_config_fg)
 
-        sky_cmb = pysm3.Sky(nside = self.Nside, preset_strings = sky_config_cmb)  #
 
-        cmb = sky_cmb.get_emission(self.freqs * u.GHz)
+        foreground = np.zeros((len(self.freqs), 3, 12*self.Nside_fg**2))
+        for i in range(len(self.freqs)):
+            foreground[i, :, :] = sky_fg.get_emission(self.freqs[i]*u.GHz).value
+        foreground = foreground.astype(np.float32)
+
+
+        foreground_1 = []
+        for i in range(foreground.shape[0]):
+            foreground_i = foreground[i, :, :]
+            if self.Nside_fg != self.Nside_exp:
+                alm_foregroundi = hp.map2alm(foreground_i)
+                nside_in = self.Nside_fg
+                nside_out = self.Nside_exp
+
+                # Verificar si alm tiene varias componentes
+                if alm_foregroundi.ndim > 1:
+                    alm_T_total = alm_foregroundi[0]  # Tomar la componente T
+                    alm_E_total = alm_foregroundi[1]  # Tomar la componente E
+                    alm_B_total = alm_foregroundi[2]  # Tomar la componente B
+                else:
+                    raise ValueError("alm no tiene suficientes componentes para T, E y B")
+
+                # Obtener lmax de la serie alm
+                lmax_in_total = hp.Alm.getlmax(len(alm_T_total))
+                lmax_out_total = min(lmax_in_total, 3 * nside_out - 1)  # Limitado por nside_out
+
+                # Obtener funciones de ventana de píxeles
+                pixwin_2048 = hp.pixwin(nside_in, pol=True)  # Incluye T, E y B
+                pixwin_512 = hp.pixwin(nside_out, pol=True)  # Incluye T, E y B
+
+                # Degradar alm para T, E y B
+                alm_degraded_T_total = hp.almxfl(alm_T_total, 1.0 / pixwin_2048[0][: lmax_in_total + 1])  # Remueve efecto de nside=2048
+                alm_out_T_total = hp.almxfl(alm_degraded_T_total, pixwin_512[0][: lmax_out_total + 1])    # Aplica efecto de nside=512
+
+                alm_degraded_E_total = hp.almxfl(alm_E_total, 1.0 / pixwin_2048[1][: lmax_in_total + 1])  # Remueve efecto de nside=2048
+                alm_out_E_total = hp.almxfl(alm_degraded_E_total, pixwin_512[1][: lmax_out_total + 1])    # Aplica efecto de nside=512
+
+                alm_degraded_B_total = hp.almxfl(alm_B_total, 1.0 / pixwin_2048[1][: lmax_in_total + 1])  # Remueve efecto de nside=2048
+                alm_out_B_total = hp.almxfl(alm_degraded_B_total, pixwin_512[1][: lmax_out_total + 1])    # Aplica efecto de nside=512
+
+                # Convertir alm a un único mapa combinando T, E y B en nside=512
+                foreground_1.append(hp.alm2map([alm_out_T_total, alm_out_E_total, alm_out_B_total], nside=nside_out, pol=True))
+            else:
+                foreground_1 = foreground
+
+        cmb = np.zeros((len(self.freqs), 3, 12*self.Nside_exp**2))
+        for i in range(len(self.freqs)):
+            cmb[i, :, :] = sky_cmb.get_emission(self.freqs[i]*u.GHz).value
         cmb = cmb.astype(np.float32)
 
-        if self.using_beam:
-            cmb = self.data_proce_beam(cmb,using_beam_1=self.using_beam, beam_1=self.beam)
-            cmb = sky_cmb.get_emission(self.freqs * u.GHz)
-            cmb = cmb.astype(np.float32)
+        total = foreground_1 + cmb
+        total = total.astype(np.float32)
 
-        # if not self.out_unit == None:
-        #     Uc_signal = np.array(convert_units("uK_RJ", self.out_unit, self.freqs))
-        #     if not len(self.freqs)>1:  # one frequence
-        #         cmb = cmb * Uc_signal[:, None, None]
-        #         total = total * Uc_signal[:, None, None]
-        #     else:
-        #         cmb = cmb * Uc_signal[:, None, None]
-        #         total = total * Uc_signal[:, None, None]
+        total_1 = []
+        for i in range(total.shape[0]):
+            total_i = total[i, :, :]
+            if self.Nside != self.Nside_exp:
+                alm_totali = hp.map2alm(total_i)
+                nside_in = self.Nside_exp
+                nside_out = self.Nside
 
-        fg = sky_fg.get_emission(self.freqs * u.GHz)
-        fg = fg.value.astype(np.float32)
+                # Verificar si alm tiene varias componentes
+                if alm_totali.ndim > 1:
+                    alm_T_total = alm_totali[0]  # Tomar la componente T
+                    alm_E_total = alm_totali[1]  # Tomar la componente E
+                    alm_B_total = alm_totali[2]  # Tomar la componente B
+                else:
+                    raise ValueError("alm no tiene suficientes componentes para T, E y B")
+
+                # Obtener lmax de la serie alm
+                lmax_in_total = hp.Alm.getlmax(len(alm_T_total))
+                lmax_out_total = min(lmax_in_total, 3 * nside_out - 1)  # Limitado por nside_out
+
+                # Obtener funciones de ventana de píxeles
+                pixwin_2048 = hp.pixwin(nside_in, pol=True)  # Incluye T, E y B
+                pixwin_512 = hp.pixwin(nside_out, pol=True)  # Incluye T, E y B
+
+                # Degradar alm para T, E y B
+                alm_degraded_T_total = hp.almxfl(alm_T_total, 1.0 / pixwin_2048[0][: lmax_in_total + 1])  # Remueve efecto de nside=2048
+                alm_out_T_total = hp.almxfl(alm_degraded_T_total, pixwin_512[0][: lmax_out_total + 1])    # Aplica efecto de nside=512
+
+                alm_degraded_E_total = hp.almxfl(alm_E_total, 1.0 / pixwin_2048[1][: lmax_in_total + 1])  # Remueve efecto de nside=2048
+                alm_out_E_total = hp.almxfl(alm_degraded_E_total, pixwin_512[1][: lmax_out_total + 1])    # Aplica efecto de nside=512
+
+                alm_degraded_B_total = hp.almxfl(alm_B_total, 1.0 / pixwin_2048[1][: lmax_in_total + 1])  # Remueve efecto de nside=2048
+                alm_out_B_total = hp.almxfl(alm_degraded_B_total, pixwin_512[1][: lmax_out_total + 1])    # Aplica efecto de nside=512
+
+                # Convertir alm a un único mapa combinando T, E y B en nside=512
+                total_1.append(hp.alm2map([alm_out_T_total, alm_out_E_total, alm_out_B_total], nside=nside_out, pol=True))
+
+            else:
+                total_1 = total
+
+        cmb_1 = []
+        for i in range(cmb.shape[0]):
+            cmb_i = cmb[i, :, :]
+            if self.Nside != self.Nside_exp:
+                alm_cmb = hp.map2alm(cmb_i)
+                nside_in = self.Nside_exp
+                nside_out = self.Nside
+
+                # verificar si alm tiene varias componentes
+                if alm_cmb.ndim > 1:
+                    alm_T_cmb = alm_cmb[0]
+                    alm_E_cmb = alm_cmb[1]
+                    alm_B_cmb = alm_cmb[2]
+                else:
+                    raise ValueError("alm no tiene suficientes componentes para T, E y B")
+                # Obtener lmax de la serie alm
+                lmax_in_cmb = hp.Alm.getlmax(len(alm_T_cmb))
+                lmax_out_cmb = min(lmax_in_cmb, 3 * nside_out - 1)  # Limitado por nside_out
+
+                # degradar alm para T, E y B
+                alm_degraded_T_cmb = hp.almxfl(alm_T_cmb, 1.0 / pixwin_2048[0][: lmax_in_cmb + 1])  # Remueve efecto de nside=2048
+                alm_out_T_cmb = hp.almxfl(alm_degraded_T_cmb, pixwin_512[0][: lmax_out_cmb + 1])    # Aplica efecto de nside=512
+
+                alm_degraded_E_cmb = hp.almxfl(alm_E_cmb, 1.0 / pixwin_2048[1][: lmax_in_cmb + 1])  # Remueve efecto de nside=2048
+                alm_out_E_cmb = hp.almxfl(alm_degraded_E_cmb, pixwin_512[1][: lmax_out_cmb + 1])    # Aplica efecto de nside=512
+
+                alm_degraded_B_cmb = hp.almxfl(alm_B_cmb, 1.0 / pixwin_2048[1][: lmax_in_cmb + 1])  # Remueve efecto de nside=2048
+                alm_out_B_cmb = hp.almxfl(alm_degraded_B_cmb, pixwin_512[1][: lmax_out_cmb + 1])    # Aplica efecto de nside=512
+                # Convertir alm a un único mapa combinando T, E y B en nside=512
+                cmb_1.append(hp.alm2map([alm_out_T_cmb, alm_out_E_cmb, alm_out_B_cmb], nside=nside_out, pol=True))
+            else:
+                cmb_1 = cmb
+
+        if self.out_unit:
+            Uc_signal = np.array(convert_units("uK_RJ", self.out_unit, self.freqs))
+            if not len(self.freqs)>1:  # one frequence
+                cmb_1 = cmb_1 * Uc_signal[:, None, None]
+                total_1 = total_1 * Uc_signal[:, None, None]
+            else:
+                cmb_1 = cmb_1 * Uc_signal[:, None, None]
+                total_1 = total_1 * Uc_signal[:, None, None]
 
 
-        # total = self.data_proce_beam(total, using_beam_1=self.using_beam, beam_1=self.beam)
-        cmb, total = process_sky(sky_fg = sky_fg,
-                                 sky_cmb = sky_cmb,
-                                 freqs = self.freqs,
-                                 nside_fg = self.Nside_fg,
-                                 nside_exp = 512,
-                                 nside_out = self.Nside,
-                                 beam = self.beam)
-        return cmb, total
+        total_1 = self.data_proce_beam(total_1)
+        cmb_1 = self.data_proce_beam(cmb_1)
 
-    def data_proce_beam(self, map_da,using_beam_1=False, beam_1=None):
-        if using_beam_1:
-            beam = beam_1
+        return cmb_1, total_1
+
+    def data_proce_beam(self, map_da):
+        if self.using_beam and self.beam is not None:
+            beam = self.beam
             map_n = np.array(
-                [hp.smoothing(m, fwhm=np.pi / 180. * b / 60., verbose=False) for (m, b) in zip(map_da, beam)])
+                [hp.smoothing(m, fwhm=np.pi / 180. * b / 60.) for (m, b) in zip(map_da, beam)])
         else:
             map_n = map_da
-            # dd = map_new
         return map_n
 
     def noiser(self, Sens, is_half_split_map = True):
@@ -225,7 +291,7 @@ class Get_data(object):
             sigma_pix_I = np.sqrt(Sens ** 2 / pix_amin2)
         noise = np.random.randn(len(Sens), 3,npix)
         noise *= sigma_pix_I[:, None,None]
-        if not self.out_unit ==None:
-            Uc_noise = np.array(pysm_units.convert_units("uK_CMB", self.out_unit, self.freqs))
+        if self.out_unit is not None:
+            Uc_noise = np.array(convert_units("K_CMB", self.out_unit, self.freqs))
             noise = noise * Uc_noise[:, None, None]
         return noise.astype(np.float32)
