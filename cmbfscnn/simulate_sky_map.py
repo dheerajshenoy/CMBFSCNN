@@ -15,42 +15,21 @@ from pysm.common import convert_units
 
 from . import get_power_sperctra as ps
 
-def degrade_map(map_in, nside_in, nside_out):
-    """Degrades and returns a map"""
+def randomize_synchrotron(sync_sky, std_A=0.1, std_beta=0.05):
+    sync_sky.pl_index *= np.random.normal(1.0, std_beta)
+    sync_sky.I_ref *= np.random.normal(1.0, std_A)
 
-    if nside_in == nside_out:
-        return map_in
+def randomize_dust(dust_sky, std_A=0.1, std_beta=0.05):
+    dust_sky.mbb_index *= np.random.normal(1.0, std_beta)
+    dust_sky.I_ref *= np.random.normal(1.0, std_A)
 
-    alm_i = hp.map2alm(map_in, pol=True)
+def randomize_ame(ame_sky, std_A=0.1):
+    comp1 = ame_sky.components[0]
+    comp2 = ame_sky.components[1]
 
-    # Check if alm has multiple components
-    if alm_i.ndim > 1:
-        alm_T_total = alm_i[0]  # Tomar la componente T
-        alm_E_total = alm_i[1]  # Tomar la componente E
-        alm_B_total = alm_i[2]  # Tomar la componente B
-    else:
-        raise ValueError("alm no tiene suficientes componentes para T, E y B")
+    comp1.I_ref *= np.random.normal(1.0, std_A)
+    comp2.I_ref *= np.random.normal(1.0, std_A)
 
-    # Get lmax of the alm series
-    lmax_in_total = hp.Alm.getlmax(len(alm_T_total))
-    lmax_out_total = min(lmax_in_total, 3 * nside_out - 1)  # Limitado por nside_out
-
-    # Get pixel window functions
-    pixwin_in = hp.pixwin(nside_in, pol=True)  # Incluye T, E y B
-    pixwin_out = hp.pixwin(nside_out, pol=True)  # Incluye T, E y B
-
-    # Degrade alm for T, E, and B
-    alm_degraded_T_total = hp.almxfl(alm_T_total, 1.0 / pixwin_in[0][: lmax_in_total + 1])  # Remueve efecto de nside=2048
-    alm_out_T_total = hp.almxfl(alm_degraded_T_total, pixwin_out[0][: lmax_out_total + 1])    # Aplica efecto de nside=512
-
-    alm_degraded_E_total = hp.almxfl(alm_E_total, 1.0 / pixwin_in[1][: lmax_in_total + 1])  # Remueve efecto de nside=2048
-    alm_out_E_total = hp.almxfl(alm_degraded_E_total, pixwin_out[1][: lmax_out_total + 1])    # Aplica efecto de nside=512
-
-    alm_degraded_B_total = hp.almxfl(alm_B_total, 1.0 / pixwin_in[1][: lmax_in_total + 1])  # Remueve efecto de nside=2048
-    alm_out_B_total = hp.almxfl(alm_degraded_B_total, pixwin_out[1][: lmax_out_total + 1])    # Aplica efecto de nside=512
-
-    # Eng: Convert alm back to a single map combining T, E, and B at nside=512
-    return hp.alm2map([alm_out_T_total, alm_out_E_total, alm_out_B_total], nside=nside_out, pol=True)
 
 def c2_mode(nside):
     return [{
@@ -100,10 +79,6 @@ class Get_data(object):
         cmb_specs = ps.ParametersSampling(random=self.config_random['Random_types_of_cosmological_parameters'], spectra_type='unlensed_scalar')
         sky_config_fg = ['s1', 'd1', 'a2']
         sky_config_cmb = ["c2"]
-        # s1 = sky_fg.components[0]
-        # d1 = sky_fg.components[1]
-        # a2 = sky_fg.components[2]
-
         # c2 = c2_mode(self.Nside)
         # c2[0]['cmb_specs'] = cmb_specs
         # c1_seed = self.config_random['cmb_seed']
@@ -114,11 +89,17 @@ class Get_data(object):
         # c2_unlens[0]['cmb_specs'] = cmb_spe
         # c2_unlens[0]['cmb_seed'] = c1_seed
 
-
-        # TODO: Implement randomization
-
         sky_cmb = pysm3.Sky(nside = self.Nside_exp, preset_strings = sky_config_cmb)
         sky_fg = pysm3.Sky(nside = self.Nside_fg, preset_strings = sky_config_fg)
+
+        s1 = sky_fg.components[0]
+        d1 = sky_fg.components[1]
+        a2 = sky_fg.components[2]
+
+
+        randomize_synchrotron(s1)
+        randomize_dust(d1)
+        randomize_ame(a2)
 
 
         foreground = np.zeros((len(self.freqs), 3, 12*self.Nside_fg**2))
