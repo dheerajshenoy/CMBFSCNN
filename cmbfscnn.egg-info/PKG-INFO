@@ -1,12 +1,16 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: cmbfscnn
 Version: 0.0.1
 Summary: a component separation of CMB using CNN 
 Author: Ye-Peng Yan
 Author-email: yanyepengphy@163.com
 License: MIT
-Platform: UNKNOWN
 Requires-Python: >=3.8
+Dynamic: author
+Dynamic: author-email
+Dynamic: description
+Dynamic: license
+Dynamic: requires-python
+Dynamic: summary
 
 a python command tool for camel case
-

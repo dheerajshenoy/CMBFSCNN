@@ -1,5 +1,6 @@
 MANIFEST.in
 README.md
+setup.cfg
 setup.py
 Utils_ILC/__init__.py
 Utils_ILC/smoothingTo.py
