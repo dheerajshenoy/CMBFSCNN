@@ -29,11 +29,11 @@ data_config_random_one_05 = {'syn_spectralindex_random':(0.05, 'one'), 'syn_ampl
 
 ## Set instrument information, including frequencies, beams, and white noise level. Please refer to Table 1 in our paper for details.
 # the performance of CMB-S4 experiment
-freqs_CMB_S4 = np.array([30,40,85,95,145,155,220,270]) # frequencies
-Beams_CMB_S4 = np.array([72.8,72.8,25.5,22.7,25.5,22.7,13.0,13.0]) # FWHM
-Sens_CMB_S4 = np.array([3.53,4.46,0.88,0.78,1.23,1.34,3.48,5.97]) # white noise level
-output_beam_CMB_S4 = 13.0
-output_freq_CMB_S4 =  220
+# freqs_CMB_S4 = np.array([30,40,85,95,145,155,220,270]) # frequencies
+# Beams_CMB_S4 = np.array([72.8,72.8,25.5,22.7,25.5,22.7,13.0,13.0]) # FWHM
+# Sens_CMB_S4 = np.array([3.53,4.46,0.88,0.78,1.23,1.34,3.48,5.97]) # white noise level
+# output_beam_CMB_S4 = 13.0
+# output_freq_CMB_S4 =  220
 
 # the performance of LiteBIRD experiment
 freqs_LiteBIRD = np.array([50,78,100,119,140,166,195,235,280,337])
@@ -42,17 +42,26 @@ Sens_LiteBIRD = np.array([32.78,18.59,12.93,9.79,9.55,5.81,7.12,15.16,17.98,24.9
 output_beam_LiteBIRD =  28.9
 output_freq_LiteBIRD =  166
 
-nside = 64
+nside = 32
 save_data_dir = 'DATA/'
 save_result_dir = 'DATA_results/'
 
 
 # The number of samples for simulating sky maps
-# N_sky_maps = [1000, 300, 300] # The sample sizes of sky map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
-N_sky_maps = [3, 2, 2] # The sample sizes of sky map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
-N_noise_maps = [2, 2, 2] # The sample sizes of noise map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
-is_half_split_map = True  # Do you use 'half-split maps' for testing? Our paper uses the 'half-split maps'.
-is_fullsky = True # Do you use a full-sky map for testing？As a tutorial, we use partial-sky ('block_-1') for testing
+
+# The sample sizes of sky map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
+# N_sky_maps = [1200, 400, 400]
+N_sky_maps = [3, 3, 3]
+
+# The sample sizes of noise map for the training set, validation set，and test set are 1000, 300, and 300, respectively.
+# N_noise_maps = [1200, 400, 400]
+N_noise_maps = [3, 3, 3]
+
+# Do you use 'half-split maps' for testing? Our paper uses the 'half-split maps'.
+is_half_split_map = True
+
+# Do you use a full-sky map for testing？As a tutorial, we use partial-sky ('block_-1') for testing
+is_fullsky = True
 # Training with a full-sky map requires a significant amount of GPU memory (>24GB), and it is recommended to use multiple GPUs for training.
 
 # For CMB experiments with high white noise levels, such as LiteBIRD, we set the expected output of CNN to use CMB+ILC noise. Thus, we need calculate ILC noise using ILC method.
@@ -75,11 +84,11 @@ padding = False
 
 Data_parameters = {
     'data_config_random': data_config_random_one_05,
-    'freqs': freqs_CMB_S4,
-    "output_freq": output_freq_CMB_S4,
-    "beams": Beams_CMB_S4,
-    "output_beam": output_beam_CMB_S4,
-    "sens": Sens_CMB_S4,
+    'freqs': freqs_LiteBIRD,
+    "output_freq": output_freq_LiteBIRD,
+    "beams": Beams_LiteBIRD,
+    "output_beam": output_beam_LiteBIRD,
+    "sens": Sens_LiteBIRD,
     "nside": nside,
     "save_data_dir": save_data_dir,
     "save_result_dir": save_result_dir,
@@ -108,7 +117,7 @@ ILC_parameters = {
 
 Training_CNN_parameters = {
     "iteration": 3e4,
-    "batch_size": 12,
+    "batch_size": 6,
     "learning_rate": 0.01,
     "device_ids": [0],
     "CNN_model": 'CMBFSCNN_level3'
@@ -125,59 +134,29 @@ save_pkl(conf_paras, save_data_dir+'config')
 
 cmbfcnn = CMBFSCNN(conf_paras)
 
-# -------------------------------------------------------------------------------------------------------
-# Simulating data and data preprocessing
-# -------------------------------------------------------------------------------------------------------
 cmbfcnn.data_simulation()
 if using_ilc_cmbmap:
     cmbfcnn.cal_ilc_noise()
 cmbfcnn.data_preprocessing()
 
-# plot map
 cmb = np.load(save_data_dir+'noiseless/cmb/cmb0.npy')
 total = np.load(save_data_dir+'noiseless/total/total0.npy')
-print(cmb.shape, total.shape)
 hp.mollview(cmb[6,0,:], title="CMB Q map",cmap = plt.get_cmap(plt.cm.jet), max=10, min=-10, norm='hist')
 hp.mollview(total[6,0,:], title="total Q map",cmap = plt.get_cmap(plt.cm.jet), max=10, min=-10, norm='hist')
 plt.show()
-plt.savefig("DD.png")
+plt.savefig("dd.png")
 
-# plot
-
-# Clear the previous figure
 plt.clf()
 
 if is_fullsky:
-    total = np.load(save_data_dir+'observed_flat_map/training_set/total/total0.npy')
+    total = np.load(save_data_dir+'observed_flat_map/training_set/to{tal/total0.npy')
     plt.imshow(total[6, 0, :], cmap=plt.cm.jet,vmin=-10,vmax=10)
 else:
     total_block = np.load(save_data_dir+'observed_flat_block_map/training_set/total/total0.npy')
     plt.imshow(total_block[6,0,:], cmap=plt.cm.jet,vmin=-10,vmax=10)
+plt.savefig("dd2.png")
 
-plt.show()
-
-plt.savefig("DD2.png")
-exit(0)
-
-# -------------------------------------------------------------------------------------------------------
-# Training CNN models
-# -------------------------------------------------------------------------------------------------------
 cmbfcnn.training_cnn()
-
-# -------------------------------------------------------------------------------------------------------
-# Prediction of CNN models
-# -------------------------------------------------------------------------------------------------------
-# get predicted map
 cmbfcnn.get_predicted_maps()
-# Calculate power spectra
 cmbfcnn.calculate_power_spectra()
-
-# -------------------------------------------------------------------------------------------------------
-# Plot results
-# -------------------------------------------------------------------------------------------------------
-
 cmbfcnn._plot_results()
-
-
-
-
