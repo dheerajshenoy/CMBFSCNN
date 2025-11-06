@@ -1,0 +1,18 @@
+# Compiler
+export CC=/opt/homebrew/opt/llvm/bin/clang
+export CXX=/opt/homebrew/opt/llvm/bin/clang++
+
+# Include paths
+export CPPFLAGS="-I/opt/homebrew/opt/fftw/include \
+-I/opt/homebrew/opt/cfitsio/include \
+-I/opt/homebrew/opt/openblas/include \
+-I/opt/homebrew/opt/gsl/include \
+-I/opt/homebrew/opt/libomp/include"
+
+# Library paths
+export LDFLAGS="-L/opt/homebrew/opt/fftw/lib \
+-L/opt/homebrew/opt/cfitsio/lib \
+-L/opt/homebrew/opt/openblas/lib \
+-L/opt/homebrew/opt/gsl/lib \
+-L/opt/homebrew/opt/libomp/lib \
+-lfftw3 -lcfitsio -lopenblas -lgsl -lgslcblas -lomp"
