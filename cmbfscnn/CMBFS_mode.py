@@ -11,14 +11,14 @@ import numpy as np
 from tqdm import tqdm
 import torch.nn as nn
 import matplotlib.pyplot as plt
-from torch.nn.parallel import DataParallel
+# from torch.nn.parallel import DataParallel
 import platform
 
 class Foreground_subtraction_model(gd.Data_preprocessing):
     def __init__(self, data_dir='DATA/', freqs = np.array([]), output_freq = 220, component ="Q", full_sky_map = False,
                  is_half_split_map=True, using_ilc_cmbmap=True, result_dir = 'DATA_results/'):
 
-        if not data_dir is None:
+        if data_dir is not None:
             self._save_dir = data_dir
             self._cread_file_name
         super(gd.Data_preprocessing, self).__init__()
@@ -286,12 +286,13 @@ class Foreground_subtraction_model(gd.Data_preprocessing):
         ax2.tick_params(which='both', width=1.5, top='on')
 
         plt.savefig(self.records_dir+'plot_acc.png')
+        plt.clf()
         # plt.show()
 
 class Result_analysis(Foreground_subtraction_model):
     def __init__(self, data_dir='DATA/',  full_sky_map = False, map_block = 'block_0', padding = True, using_ilc_cmbmap=False,
                  is_half_split_map=True, result_dir = 'DATA_results/',freqs = np.array([]),  output_freq = 220, nside=512):
-        if not data_dir is None:
+        if data_dir is not None:
             self._save_dir = data_dir
             self._cread_file_name
         self.result_dir = result_dir
@@ -308,7 +309,7 @@ class Result_analysis(Foreground_subtraction_model):
         if platform.system() == "Darwin":
             self.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
         elif platform.system() == "Linux" or platform.system() == "Windows":
-            self.device = torch.device("cuda:{}".format(device_ids[0]) if torch.cuda.is_available() else "cpu")
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
             self.device = torch.device("cpu")
 
@@ -422,8 +423,8 @@ class Result_analysis(Foreground_subtraction_model):
             output_dir = getattr(self, 'output_{}map_dir'.format(str))
             self._creat_file(output_dir)
             try:
-                out_1 = np.load(output_dir + 'predicted_CMB' + str + '_map_half_1.npy')
-            except:
+                _ = np.load(output_dir + 'predicted_CMB' + str + '_map_half_1.npy')
+            except ...:
                self.prediction(self, num_testset=num_testset, comp = str, is_get_sphere_map = True, is_return = False)
 
     def get_true_CMB_map(self, index_sky_map):
