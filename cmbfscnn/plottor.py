@@ -21,6 +21,7 @@ def plot_sphere_map(denoise_map, target_map, title=[], range=[], save_dir = '',N
     plt.subplots_adjust(top=0.97, bottom=0.06, left=0.1, right=0.97, hspace=0.01, wspace=0)
     # if not save_dir == None:
     plt.savefig(save_dir+'.png')
+    plt.clf()
     # plt.show()
 
 
