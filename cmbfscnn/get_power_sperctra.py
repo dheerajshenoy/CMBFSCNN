@@ -95,10 +95,8 @@ def get_spectra(random='Normal', times=5, spectra_type='lensed_scalar'):
 def ReadClFromPycamb(random=None, times=None, runCAMB = False, spectra_type='lensed_scalar'):
     if runCAMB:
         cls, sim_params = get_spectra(random=random, times=times, spectra_type=spectra_type)
-        
         # cls is power spectra wiht shape[N_l,5]. [:,0] is ell, index from 1 to 5 represent TT, EE, BB, TE
-        data = Spectra(Cls = cls.transpose(), isCl = False, \
-        Name = 'CMB Spectra', Checkl = False) #
+        data = Spectra(Cls = cls.transpose(), isCl = False, Name = 'CMB Spectra', Checkl = False) #
         # .transpose() can change shape Cls, make the shape (N_l, 5) of Cls become (5,N_l)
         # Spectra function is checking ell, which didn't seem to help much
     # data.Cls = np.concatenate([data.Cls, np.zeros([3,len(data.Cls[0])])]) ## shape (8,N_l)
