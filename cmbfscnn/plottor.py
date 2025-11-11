@@ -10,22 +10,6 @@ import matplotlib
 
 NSIDE = 512
 
-# def plot_sphere_map(denoise_map, target_map, title=[], range=[], save_dir = '',N_sample= 0):
-#     residual_map = target_map - denoise_map
-#     fig = plt.figure()
-#     CMAP = plt.cm.jet
-#     hp.mollview(target_map[N_sample,:], fig=fig.number, cmap=CMAP, sub=(1, 3, 1),
-#                 unit=r'$\mathrm{\mu K}$',min=-1*range[0], max=range[0],title=title[0])
-#     hp.mollview(denoise_map[N_sample,:], fig=fig.number, cmap=CMAP, sub=(1, 3, 2),
-#                 unit=r'$\mathrm{\mu K}$', min=-1*range[1], max=range[1],title=title[1])
-#     hp.mollview(residual_map[N_sample,:], fig=fig.number, cmap=CMAP, sub=(1, 3, 3),
-#                 unit=r'$\mathrm{\mu K}$',min=-1*range[2], max=range[2], title=title[2])
-#     # plt.subplots_adjust(top=0.97, bottom=0.06, left=0.1, right=0.97, hspace=0.01, wspace=0)
-#     # if not save_dir == None:
-#     plt.savefig(save_dir+'.png')
-#     plt.clf()
-#     # plt.show()
-
 
 def plot_sphere_map(
     denoise_map, target_map, title=[], range=[], save_dir="", N_sample=0, use_log=False
@@ -50,7 +34,7 @@ def plot_sphere_map(
             np.max(np.abs(residual_map[N_sample])),
         ]
 
-    fontsize={ "title": 10, "cbar_label":8 }
+    fontsize = {"title": 10, "cbar_label": 8}
 
     # Plot: Target map
     hp.projview(
@@ -63,7 +47,7 @@ def plot_sphere_map(
         max=range[0],
         title=title[0],
         projection_type="mollweide",
-        fontsize=fontsize
+        fontsize=fontsize,
     )
 
     # Plot: Denoised map
@@ -77,7 +61,7 @@ def plot_sphere_map(
         max=range[1],
         title=title[1],
         projection_type="mollweide",
-        fontsize=fontsize
+        fontsize=fontsize,
     )
 
     # Plot: Residual map
@@ -107,46 +91,50 @@ def plot_sphere_map(
 
 def plot_image(denoise_map, target_map, title, N_sample=0, save_dir="", range=[]):
     denoise_map, target_map = denoise_map[N_sample, :], target_map[N_sample, :]
+    residual_map = denoise_map - target_map
 
-    fig = plt.figure(figsize=(24, 24))
-    gs0 = gridspec.GridSpec(2, 2, figure=fig)
-    gs01 = gs0[0].subgridspec(1, 1)
-    gs02 = gs0[1].subgridspec(1, 1)
-    gs03 = gs0[2].subgridspec(1, 1)
-    ax1 = fig.add_subplot(gs01[0])
-    ax2 = fig.add_subplot(gs02[0], sharex=ax1, sharey=ax1)
-    ax3 = fig.add_subplot(gs03[0], sharex=ax1, sharey=ax1)
+    fig = plt.figure(figsize=(18, 6))
+    gs0 = gridspec.GridSpec(1, 3, figure=fig, wspace=0.35)
 
-    im1 = ax1.imshow(target_map, cmap=plt.cm.jet, vmin=-1 * range[0], vmax=range[0])
-    divider = make_axes_locatable(ax1)
-    cax = divider.append_axes("right", size="5%", pad=0.1)
-    cb = fig.colorbar(im1, cax=cax)
-    cb.ax.tick_params(which="major", length=12, direction="in", width=3, labelsize=30)
-    ax1.set_title(title[0], fontsize=30)
+    # Use perceptually uniform colormap for target & denoised
+    cmap = plt.cm.jet
 
-    im2 = ax2.imshow(denoise_map, cmap=plt.cm.jet, vmin=-1 * range[1], vmax=range[1])
-    divider = make_axes_locatable(ax2)
-    cax2 = divider.append_axes("right", size="5%", pad=0.1)
+    # --- Target Map ---
+    ax1 = fig.add_subplot(gs0[0])
+    im1 = ax1.imshow(target_map, cmap=cmap, vmin=-range[0], vmax=range[0])
+    divider1 = make_axes_locatable(ax1)
+    cax1 = divider1.append_axes("right", size="5%", pad=0.1)
+    cb1 = fig.colorbar(im1, cax=cax1)
+    cb1.ax.tick_params(which="major", length=8, direction="in", width=2, labelsize=14)
+    ax1.set_title(title[0], fontsize=18)
+    ax1.axis("off")
+
+    # --- Denoised Map ---
+    ax2 = fig.add_subplot(gs0[1], sharex=ax1, sharey=ax1)
+    im2 = ax2.imshow(denoise_map, cmap=cmap, vmin=-range[1], vmax=range[1])
+    divider2 = make_axes_locatable(ax2)
+    cax2 = divider2.append_axes("right", size="5%", pad=0.1)
     cb2 = fig.colorbar(im2, cax=cax2)
-    cb2.ax.tick_params(which="major", length=12, direction="in", width=3, labelsize=30)
-    ax2.set_title(title[1], fontsize=30)
+    cb2.ax.tick_params(which="major", length=8, direction="in", width=2, labelsize=14)
+    ax2.set_title(title[1], fontsize=18)
+    ax2.axis("off")
 
-    im3 = ax3.imshow(
-        denoise_map - target_map, cmap=plt.cm.jet, vmin=-1 * range[2], vmax=range[2]
-    )
-    divider = make_axes_locatable(ax3)
-    cax3 = divider.append_axes("right", size="5%", pad=0.1)
-    cb = fig.colorbar(im3, cax=cax3)
-    cb.ax.tick_params(which="major", length=12, direction="in", width=3, labelsize=30)
-    ax3.set_title(title[2], fontsize=30)
+    # --- Residual Map ---
+    ax3 = fig.add_subplot(gs0[2], sharex=ax1, sharey=ax1)
+    im3 = ax3.imshow(residual_map, cmap=cmap, vmin=-range[2], vmax=range[2])
+    divider3 = make_axes_locatable(ax3)
+    cax3 = divider3.append_axes("right", size="5%", pad=0.1)
+    cb3 = fig.colorbar(im3, cax=cax3)
+    cb3.ax.tick_params(which="major", length=8, direction="in", width=2, labelsize=14)
+    ax3.set_title(title[2], fontsize=18)
+    ax3.axis("off")
 
-    fig.tight_layout()
-    plt.subplots_adjust(
-        top=0.98, bottom=0.06, left=0.05, right=0.94, hspace=0.04, wspace=0.4
-    )
-    plt.savefig(save_dir + ".png")
-    # plt.show()
-    return
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.92, bottom=0.05, left=0.03, right=0.97)
+
+    if save_dir:
+        plt.savefig(save_dir + ".png", dpi=200, bbox_inches="tight")
+    plt.close(fig)
 
 
 def plot_EEBB_PS(
