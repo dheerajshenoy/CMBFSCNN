@@ -376,17 +376,18 @@ class Get_data(object):
         )
         #
         # np.savetxt("cmb_specs.txt", cmb_specs)
-        sky_config_fg = ["s1", "d1", "a2"]
+        # sky_config_fg = ["s1", "d1", "a2"]
+        sky_config_fg = ["s5", "d10"]
         sky_config_cmb = ["c2"]
 
         sky_fg = pysm3.Sky(nside=self.Nside_fg, preset_strings=sky_config_fg)
 
-        # s1 = sky_fg.components[0]
-        # d1 = sky_fg.components[1]
+        s5 = sky_fg.components[0]
+        d10 = sky_fg.components[1]
         # a2 = sky_fg.components[2]
-        #
-        # randomize_synchrotron(s1, self.config_random)
-        # randomize_dust(d1, self.config_random)
+
+        randomize_synchrotron(s5, self.config_random)
+        randomize_dust(d10, self.config_random)
         # randomize_ame(a2, self.config_random)
 
         # c2 = c2_mode(512)
@@ -402,7 +403,7 @@ class Get_data(object):
         sky_cmb = pysm3.Sky(nside=self.Nside_exp, preset_strings=sky_config_cmb)
         # sky_cmb.components = [c2]
         cmb = sky_cmb.get_emission(self.freqs * u.GHz)
-        # sky_fg.components = [s1, d1, a2]
+        sky_fg.components = [s5, d10]
 
         cmb = np.zeros((len(self.freqs), 3, 12 * self.Nside_exp**2))
         for i in range(len(self.freqs)):
