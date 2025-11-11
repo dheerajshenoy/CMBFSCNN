@@ -5,9 +5,9 @@ from . import plottor as pt
 from . import CMBFS_mode as Cm
 
 
-class Plot_results(Cm.Calculate_power_spectra):
+class Plot_results(CMBFS_mode.Calculate_power_spectra):
     def __init__(self, result_dir="DATA_results/", is_half_split_map=True):
-        super(Plot_results, self).__init__()
+        super(Plot_results, self).__init__(result_dir)
         self.result_dir = result_dir
         self.is_half_split_map = is_half_split_map
         self.save_PS_dir
