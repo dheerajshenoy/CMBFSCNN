@@ -8,21 +8,14 @@ import numpy as np
 
 import matplotlib
 
-NSIDE = 512
-
+ell_max = 400
 
 def plot_sphere_map(
-    denoise_map, target_map, title=[], range=[], save_dir="", N_sample=0, use_log=False
+    denoise_map, target_map, title=[], range=[], save_dir="", N_sample=0
 ):
     residual_map = target_map - denoise_map
     fig = plt.figure(figsize=(12, 4))
     cmap = plt.cm.jet
-
-    # Internal helper for optional log scaling
-    def preprocess(data):
-        if use_log:
-            return np.sign(data) * np.log10(1 + np.abs(data))
-        return data
 
     # Default titles and ranges if not provided
     if not title:
@@ -38,7 +31,7 @@ def plot_sphere_map(
 
     # Plot: Target map
     hp.projview(
-        preprocess(target_map[N_sample, :]),
+        target_map[N_sample, :],
         fig=fig.number,
         cmap=cmap,
         sub=(1, 3, 1),
@@ -52,7 +45,7 @@ def plot_sphere_map(
 
     # Plot: Denoised map
     hp.projview(
-        preprocess(denoise_map[N_sample, :]),
+        denoise_map[N_sample, :],
         fig=fig.number,
         cmap=cmap,
         sub=(1, 3, 2),
@@ -66,7 +59,7 @@ def plot_sphere_map(
 
     # Plot: Residual map
     hp.projview(
-        preprocess(residual_map[N_sample, :]),
+        residual_map[N_sample, :],
         fig=fig.number,
         cmap=cmap,
         sub=(1, 3, 3),
@@ -190,7 +183,7 @@ def plot_EEBB_PS(
         )
         ax1.set_ylabel(r"$D_{\ell}^{EE}$")
         ax1.set_xlabel(r"$\ell$")
-        ax1.set_xlim(0, NSIDE)
+        ax1.set_xlim(0, ell_max)
         ax1.set_yscale("log")
         ax1.legend(frameon=False)
 
@@ -210,7 +203,7 @@ def plot_EEBB_PS(
         )
         ax3.set_ylabel(r"$D_{\ell}^{BB}$")
         ax3.set_xlabel(r"$\ell$")
-        ax3.set_xlim(0, NSIDE)
+        ax3.set_xlim(0, ell_max)
         ax3.set_yscale("log")
         ax3.legend(frameon=False)
 
@@ -228,7 +221,7 @@ def plot_EEBB_PS(
         )
         # ax2.set_ylabel(r"$D_{\ell}^{EE}$")
         ax2.set_xlabel(r"$\ell$")
-        ax2.set_xlim(0, NSIDE)
+        ax2.set_xlim(0, ell_max)
         ax2.set_yscale("log")
         ax2.legend(frameon=False)
 
@@ -246,7 +239,7 @@ def plot_EEBB_PS(
         )
         # ax4.set_ylabel(r"$D_{\ell}^{BB}$")
         ax4.set_xlabel(r"$\ell$")
-        ax4.set_xlim(0, NSIDE)
+        ax4.set_xlim(0, ell_max)
         ax4.set_yscale("log")
         ax4.legend(frameon=False)
 
@@ -267,6 +260,150 @@ def plot_EEBB_PS(
     plt.tight_layout()
     plt.savefig("power.png", bbox_inches="tight")
     # plt.show()
+
+
+def plot_EEBB_PS_err(
+    ell,
+    out_EE,
+    tar_EE,
+    out_BB,
+    tar_BB,
+    out_denoise_EE,
+    true_EE,
+    out_denoise_BB,
+    true_BB,
+    error_QQ_1,
+    error_UU_1,
+    error_QQ_2,
+    error_UU_2,
+):
+    """Similar to plot_EEBB_PS but with error bars and residual plots."""
+    plt.style.use("seaborn-v0_8-paper")
+    fig = plt.figure(figsize=(12, 8))
+    outer_gs = gridspec.GridSpec(2, 2, figure=fig, wspace=0.25, hspace=0.25)
+
+    def make_plot(
+        subspec, tar, out, y_label, y_res_label, label_tar, label_out, error, BB, lim
+    ):
+        bin_width = 30
+        bin_edges = np.arange(min(ell), max(ell) + bin_width, bin_width)
+        bin_indices = np.digitize(ell, bin_edges) - 1
+
+        binned_l, binned_tar, binned_out = [], [], []
+        for i in range(len(bin_edges) - 1):
+            mask = bin_indices == i
+            if np.any(mask):
+                binned_l.append(np.mean(ell[mask]))
+                binned_tar.append(np.mean(tar[mask]))
+                binned_out.append(np.mean(out[mask]))
+
+        binned_l = np.array(binned_l)
+        binned_tar = np.array(binned_tar)
+        binned_out = np.array(binned_out)
+        delta = binned_tar - binned_out
+
+        def calculate_sigma_b(b, ells, err_sq, width):
+            l_min, l_max = b * width, (b + 1) * width
+            mask = (ells >= l_min) & (ells < l_max)
+            inv_err_sum = np.sum(1 / err_sq[mask])
+            return 1 / np.sqrt(inv_err_sum) if inv_err_sum > 0 else np.nan
+
+        err_sq = error**2
+        error_bin = np.array(
+            [calculate_sigma_b(b, ell, err_sq, bin_width) for b in range(len(binned_l))]
+        )
+
+        gs_inner = gridspec.GridSpecFromSubplotSpec(
+            2, 1, subplot_spec=subspec, height_ratios=[3, 1], hspace=0.05
+        )
+
+        # Main Power Spectrum
+        p1 = fig.add_subplot(gs_inner[0])
+        p1.plot(binned_l, binned_tar, label=label_tar, color="#2E8B57", lw=1.8)
+        p1.plot(binned_l, binned_out, label=label_out, color="#D62728", lw=1.8, ls="--")
+        p1.set_yscale("log")
+        p1.set_xlim(0, 400)
+        p1.set_ylabel(y_label, fontsize=11)
+        p1.legend(fontsize=8, loc="lower right", frameon=False)
+        p1.tick_params(axis="x", which="both", labelbottom=False)
+        p1.grid(True, which="both", linestyle=":", alpha=0.4)
+
+        # Residual plot
+        p2 = fig.add_subplot(gs_inner[1], sharex=p1)
+        p2.errorbar(
+            binned_l,
+            delta,
+            yerr=error_bin,
+            fmt=".",
+            color="#1f77b4",
+            markersize=4,
+            elinewidth=1,
+            capsize=2,
+            label="Residual",
+        )
+        p2.axhline(0, color="gray", linestyle="--", lw=1)
+        p2.set_ylabel(y_res_label, fontsize=11)
+        p2.set_xlabel(r"$\ell$", fontsize=11)
+        p2.tick_params(axis="both", which="major", labelsize=8)
+        p2.set_ylim(-1.2 * lim, 1.2 * lim)
+        p2.grid(True, linestyle=":", alpha=0.4)
+
+    make_plot(
+        outer_gs[0, 0],
+        tar_EE,
+        out_EE,
+        y_label=r"$D_{\ell}^{EE}$ [$\mu$K$^2$]",
+        y_res_label=r"$\Delta D_{\ell}^{EE}$ [$\mu$K$^2$]",
+        label_tar="Simulated noisy",
+        label_out="Recovered noisy",
+        error=error_QQ_1,
+        BB=False,
+        lim=2.1,
+    )
+
+    make_plot(
+        outer_gs[1, 0],
+        tar_BB,
+        out_BB,
+        y_label=r"$D_{\ell}^{BB}$ [$\mu$K$^2$]",
+        y_res_label=r"$\Delta D_{\ell}^{BB}$ [$\mu$K$^2$]",
+        label_tar="Simulated noisy",
+        label_out="Recovered noisy",
+        error=error_UU_1,
+        BB=True,
+        lim=6.1,
+    )
+
+    make_plot(
+        outer_gs[0, 1],
+        true_EE,
+        out_denoise_EE,
+        y_label=r"$D_{\ell}^{EE}$ [$\mu$K$^2$]",
+        y_res_label=r"$\Delta D_{\ell}^{EE}$ [$\mu$K$^2$]",
+        label_tar="Simulated denoised",
+        label_out="Recovered denoised",
+        error=error_QQ_2,
+        BB=False,
+        lim=19.5,
+    )
+
+    make_plot(
+        outer_gs[1, 1],
+        true_BB,
+        out_denoise_BB,
+        y_label=r"$D_{\ell}^{BB}$ [$\mu$K$^2$]",
+        y_res_label=r"$\Delta D_{\ell}^{BB}$ [$\mu$K$^2$]",
+        label_tar="Simulated denoised",
+        label_out="Recovered denoised",
+        error=error_UU_2,
+        BB=True,
+        lim=15.5,
+    )
+
+    plt.subplots_adjust(left=0.08, right=0.96, bottom=0.07, top=0.95)
+    fig.suptitle("EE and BB Power Spectrum Comparison", fontsize=14, fontweight="bold")
+    plt.savefig("power_EEBB_pretty.png", dpi=300)
+    plt.close(fig)
 
 
 def plot_QQUU_PS(
