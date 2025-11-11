@@ -2,7 +2,7 @@
 import numpy as np
 from . import plottor as pt
 
-from . import CMBFS_mode as Cm
+from . import CMBFS_mode
 
 
 class Plot_results(CMBFS_mode.Calculate_power_spectra):
