@@ -210,3 +210,63 @@ class CMBFSCNN(object):
         # self.get_predicted_maps()
         # self.calculate_power_spectra()
         self._plot_results()
+
+    def plot_sphere_flat(self):
+        Data_prep = gd.Data_preprocessing(
+            save_dir=self.save_data_dir,
+            padding=self.padding,
+            is_half_split_map=self.is_half_split_map,
+            nside=self.nside,
+            block_number=self.block_n,
+            full_sky_map=self.is_fullsky,
+            using_ilc_cmbmap=self.using_ilc_cmbmap,
+        )
+
+        import matplotlib.pyplot as plt
+        import healpy as hp
+        import numpy as np
+
+        total = np.load(self.save_data_dir + 'noiseless/total/total0.npy')
+
+        # Create side-by-side subplots
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+        # Left: Mollweide projection
+        hp.projview(
+            total[6, 0, :],
+            title="Total Q map",
+            cmap=plt.cm.jet,
+            max=10,
+            min=-10,
+            norm='hist',
+            projection_type="mollweide",
+            fig=fig.number,
+            sub=(1, 2, 1)
+        )
+
+        # Right: Flat map
+        dd = Data_prep.flat_map_from_sphere_single(total, 0)
+
+        from cmbfscnn.spherical import Cut
+
+        blocks_with_ids = Cut(total[6, 0, :]).block_all_with_index()
+        mask = np.zeros(hp.nside2npix(self.nside))
+
+        block_id = 0
+        blk_idx, blk_data = blocks_with_ids[block_id]
+
+        mask = np.zeros_like(total[6, 0, :])
+
+        mask_indices = np.where(blk_data.flatten() != 0)[0]
+        mask[mask_indices] = 1
+
+        im = axs[1].imshow(dd[0, 0], vmin=-5, vmax=5, cmap=plt.cm.jet)
+        axs[1].set_title("Flat-sky piece")
+        plt.colorbar(im, ax=axs[1], fraction=0.046, pad=0.04)
+
+        axs[0].axis("off")
+
+        plt.tight_layout()
+        plt.savefig("flat.png", dpi=300)
+        plt.show()
+
