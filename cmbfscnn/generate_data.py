@@ -147,23 +147,22 @@ class Simulator_data(object):
         '''
         self._creat_file(self.dir_cmb)
         self._creat_file(self.dir_total)
-        part_n = 11
-        part_size = 110
-        Dustseed = np.random.choice(N_sky_map*100000, N_sky_map*1000, replace=False)
-        AMEseed = np.random.choice(N_sky_map*100000, N_sky_map*1000, replace=False)
-        Syncseed = np.random.choice(N_sky_map*100000, N_sky_map*1000, replace=False)
-        CMBseed = np.random.choice(N_sky_map*1000000, N_sky_map*1000, replace=False)
+        # part_n = 11
+        # part_size = 110
+        # Dustseed = np.random.choice(N_sky_map*100000, N_sky_map*1000, replace=False)
+        # AMEseed = np.random.choice(N_sky_map*100000, N_sky_map*1000, replace=False)
+        # Syncseed = np.random.choice(N_sky_map*100000, N_sky_map*1000, replace=False)
+        # CMBseed = np.random.choice(N_sky_map*1000000, N_sky_map*1000, replace=False)
         pbar = tqdm(total = N_sky_map)
         pbar.set_description('Simulating sky signals')
         for n in range(N_sky_map):
-            self.Config_random['cmb_seed'] = CMBseed[n+ part_n * part_size]
-            self.Config_random['dust_seed'] = Dustseed[n + part_n * part_size]
-            self.Config_random['syn_seed'] = Syncseed[n + part_n * part_size]
-            self.Config_random['ame_seed'] = AMEseed[n + part_n * part_size]
+            # self.Config_random['cmb_seed'] = CMBseed[n+ part_n * part_size]
+            # self.Config_random['dust_seed'] = Dustseed[n + part_n * part_size]
+            # self.Config_random['syn_seed'] = Syncseed[n + part_n * part_size]
+            # self.Config_random['ame_seed'] = AMEseed[n + part_n * part_size]
             cmb, total = self.__get_map()
             np.save(self.dir_cmb+ 'cmb' + str(n) + '.npy', cmb.astype(np.float32))
             np.save(self.dir_total + 'total' + str(n) + '.npy', total.astype(np.float32))
-
             pbar.update(1)
 
     def simulator_noise_map(self, N_noise_map,  dataset_type = 'training_set'):
@@ -483,8 +482,6 @@ class Data_preprocessing(Simulator_data):
         self.nside = nside
         self._cread_file_name
 
-
-
     def flat_map_from_sphere_fullsky(self, sphere_map):
 
         if len(sphere_map.shape) == 3:
@@ -505,6 +502,7 @@ class Data_preprocessing(Simulator_data):
                 map_new[:, j, :, :] = sp.sphere2piecePlane_squa_pad_mult(sphere_map=sphere_map[:, j, :], nside=self.nside)
         else:
             map_new = sp.sphere2piecePlane_squa_pad_mult(sphere_map=sphere_map, nside=self.nside)
+
         return map_new
 
     def flat_map_from_sphere_block_map(self, sphere_map):
@@ -536,6 +534,7 @@ class Data_preprocessing(Simulator_data):
                     cmb_obs = np.load(self.dir_cmb_obs_tra + 'cmb' + str(idx) + '.npy')
                 total_obs = np.load(self.dir_total_obs_tra + 'total' + str(idx) + '.npy')
                 if self.padding:
+                    print("DD")
                     cmb_obs_flat = self.flat_map_from_sphere_fullsky_padding(cmb_obs)
                     total_obs_flat = self.flat_map_from_sphere_fullsky_padding(total_obs)
                 else:
