@@ -749,8 +749,6 @@ class Calculate_power_spectra(Result_analysis):
         # super(Calculate_power_spectra, self).__init__()
         self.is_half_split_map = is_half_split_map
         self.result_dir = result_dir
-        print(self.result_dir)
-        print("DD")
         self._creat_file_n
         self.beams = beams_arcmin
         self.output_beam = output_beam_arcmin
