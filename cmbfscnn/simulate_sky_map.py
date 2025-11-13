@@ -16,6 +16,7 @@ from pysm3 import units as pysm_units, utils
 from pysm.common import convert_units
 from . import get_power_sperctra as ps
 import matplotlib.pyplot as plt
+
 # def randomize_synchrotron(sync_sky, std_A=0.1, std_beta=0.05):
 #     sync_sky.pl_index *= np.random.normal(1.0, std_beta)
 #     sync_sky.I_ref *= np.random.normal(1.0, std_A)
@@ -31,30 +32,6 @@ import matplotlib.pyplot as plt
 #     comp1.I_ref *= np.random.normal(1.0, std_A)
 #     comp2.I_ref *= np.random.normal(1.0, std_A)
 #
-
-def c2_mode(nside):
-    return [
-        {
-            "model": "taylens",
-            "nside": nside,
-            "cmb_seed": 1111,
-            "delens": False,
-            "output_unlens": False,
-        }
-    ]
-
-
-def c2_unlens_mode(nside):
-    return [
-        {
-            "model": "taylens",
-            "nside": nside,
-            "cmb_seed": 1111,
-            "delens": False,
-            "output_unlens": True,
-        }
-    ]
-
 
 def downgrade_map(cmb, nside_in, nside_out):
     cmb_downgrade = []
@@ -376,44 +353,37 @@ class Get_data(object):
         )
         #
         # np.savetxt("cmb_specs.txt", cmb_specs)
-        # sky_config_fg = ["s1", "d1", "a2"]
-        sky_config_fg = ["s5", "d10"]
-        sky_config_cmb = ["c2"]
+        sky_config_fg = ["s1", "d1", "a2"]
+        # sky_config_fg = ["s5", "d10"]
 
         sky_fg = pysm3.Sky(nside=self.Nside_fg, preset_strings=sky_config_fg)
 
-        s5 = sky_fg.components[0]
-        d10 = sky_fg.components[1]
-        # a2 = sky_fg.components[2]
+        s = sky_fg.components[0]
+        d = sky_fg.components[1]
+        a = sky_fg.components[2]
 
-        randomize_synchrotron(s5, self.config_random)
-        randomize_dust(d10, self.config_random)
-        # randomize_ame(a2, self.config_random)
+        randomize_synchrotron(s, self.config_random)
+        randomize_dust(d, self.config_random)
+        randomize_ame(a, self.config_random)
 
-        # c2 = c2_mode(512)
-        # c2[0]['cmb_specs'] = cmb_specs
-        # c1_seed = self.config_random['cmb_seed']
-        # c2 = pysm3.CMBLensed(nside=self.Nside_exp, cmb_spectra="cmb_specs.txt", max_nside = 3*self.Nside_exp - 1, cmb_seed = c1_seed)
+        cl_TT = cmb_specs[:, 1]
+        cl_EE = cmb_specs[:, 2]
+        cl_BB = cmb_specs[:, 3]
+        cl_TE = cmb_specs[:, 4]
 
-        # c2_unlens = c2_unlens_mode(512)
-        # cmb_spe = cmb_specs.copy()
-        # c2_unlens[0]['cmb_specs'] = cmb_spe
-        # c2_unlens[0]['cmb_seed'] = c1_seed
+        cmb_map = hp.synfast([cl_TT, cl_EE, cl_BB, cl_TE], self.Nside_exp, pol=True, new=True)
 
-        sky_cmb = pysm3.Sky(nside=self.Nside_exp, preset_strings=sky_config_cmb)
-        # sky_cmb.components = [c2]
-        cmb = sky_cmb.get_emission(self.freqs * u.GHz)
-        sky_fg.components = [s5, d10]
+        sky_fg.components = [s, d, a]
 
-        cmb = np.zeros((len(self.freqs), 3, 12 * self.Nside_exp**2))
+        cmb = np.zeros((len(self.freqs), 3, 12 * self.Nside_exp**2), dtype=np.float32)
         for i in range(len(self.freqs)):
-            cmb[i, :, :] = sky_cmb.get_emission(self.freqs[i] * u.GHz).value
-        cmb = cmb.astype(np.float32)
+            cmb[i, 0] = cmb_map[0]
+            cmb[i, 1] = cmb_map[1]
+            cmb[i, 2] = cmb_map[2]
 
-        foreground = np.zeros((len(self.freqs), 3, 12 * self.Nside_fg**2))
+        foreground = np.zeros((len(self.freqs), 3, 12 * self.Nside_fg**2), dtype=np.float32)
         for i in range(len(self.freqs)):
             foreground[i, :, :] = sky_fg.get_emission(self.freqs[i] * u.GHz).value
-        foreground = foreground.astype(np.float32)
 
         foreground_downgrade = []
 
@@ -424,8 +394,7 @@ class Get_data(object):
         else:
             foreground_downgrade = foreground
 
-        total = foreground_downgrade + cmb
-        total = total.astype(np.float32)
+        total = (foreground_downgrade + cmb).astype(np.float32)
 
         cmb_downgrade = []
         total_downgrade = []
@@ -446,24 +415,9 @@ class Get_data(object):
                 cmb_downgrade = cmb_downgrade * Uc_signal[:, None, None]
                 total_downgrade = total_downgrade * Uc_signal[:, None, None]
 
-        # if self.out_unit:
-        #     cmb_downgrade = cmb_downgrade.to(self.out_unit, equivalencies=pysm_units.cmb_equivalencies(self.freqs * u.GHz)).value
-        #     total_downgrade = total_downgrade.to(self.out_unit, equivalencies=pysm_units.cmb_equivalencies(self.freqs * u.GHz)).value
-
         total_downgrade = self.data_proce_beam(total_downgrade)
         cmb_downgrade = self.data_proce_beam(cmb_downgrade)
 
-        # for i in range(3):
-        #     plt.clf()
-        #     hp.mollview(
-        #         cmb_downgrade[0][i],
-        #         title="Total map at {} GHz".format(self.freqs[0]),
-        #         unit=self.out_unit,
-        #         norm="hist",
-        #         cmap="jet",
-        #     )
-        #     plt.savefig(f"demo_{i}.png")
-        # exit(0)
         return cmb_downgrade, total_downgrade
 
     def data_proce_beam(self, map_da):
