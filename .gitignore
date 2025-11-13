@@ -1,5 +1,6 @@
 examples/DATA/
 examples/old_data/
 cmbfscnn/__pycache__/
+cmbfscnn/data/
 pysm/__pycache__/
 NEW_PLOTS/
