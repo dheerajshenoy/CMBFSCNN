@@ -787,3 +787,34 @@ def add_frame(map_cut, sides=(512, 512)):
                 elif j == side_W - 1:
                     map_frame[i, j - pix] = 1e6
     return map_frame
+def sphere2piecePlane_single(sphere_map, nside=512, block_index=0):
+    """
+    Extract a single HEALPix face from the full-sky map.
+
+    Parameters
+    ----------
+    sphere_map : ndarray
+        Input HEALPix map, shape (N_pix,) or (N_map, N_pix).
+    nside : int
+        HEALPix nside parameter.
+    block_index : int
+        Which of the 12 faces to extract (0–11).
+
+    Returns
+    -------
+    piece_map : ndarray
+        A single map face of shape (nside, nside) or (N_map, nside, nside)
+        if multiple maps are provided.
+    """
+    # Determine if multiple maps are stacked
+    if sphere_map.ndim == 2:
+        multi_map_n = sphere_map.shape[0]
+        piece_map = np.zeros((multi_map_n, nside, nside))
+        for i in range(multi_map_n):
+            blocks = Cut(sphere_map[i]).block_all()
+            piece_map[i] = blocks[block_index]
+    else:
+        blocks = Cut(sphere_map).block_all()
+        piece_map = blocks[block_index]
+
+    return piece_map
