@@ -198,7 +198,9 @@ class CMBFSCNN(object):
         )
         PR.plot_predicted_sphere_map()
         PR.plot_predicted_flat_map()
+        PR.plot_recovered_CMB_QU_PS_averaged()
         PR.plot_recovered_CMB_QU_PS()
+        PR.plot_recovered_CMB_EB_PS_averaged()
         PR.plot_recovered_CMB_EB_PS()
 
     def run_CMBFSCNN(self):
