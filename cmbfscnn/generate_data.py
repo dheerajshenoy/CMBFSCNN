@@ -235,6 +235,12 @@ class Simulator_data(object):
         # AMEseed = np.random.choice(N_sky_map*100000, N_sky_map*1000, replace=False)
         # Syncseed = np.random.choice(N_sky_map*100000, N_sky_map*1000, replace=False)
         # CMBseed = np.random.choice(N_sky_map*1000000, N_sky_map*1000, replace=False)
+        part_n = 11
+        part_size = 110
+        Dustseed = np.random.choice(N_sky_map*100000, N_sky_map*1000, replace=False)
+        AMEseed = np.random.choice(N_sky_map*100000, N_sky_map*1000, replace=False)
+        Syncseed = np.random.choice(N_sky_map*100000, N_sky_map*1000, replace=False)
+        CMBseed = np.random.choice(N_sky_map*1000000, N_sky_map*1000, replace=False)
         pbar = tqdm(total=N_sky_map)
         pbar.set_description("Simulating sky signals")
         for n in range(N_sky_map):
@@ -242,6 +248,10 @@ class Simulator_data(object):
             # self.Config_random['dust_seed'] = Dustseed[n + part_n * part_size]
             # self.Config_random['syn_seed'] = Syncseed[n + part_n * part_size]
             # self.Config_random['ame_seed'] = AMEseed[n + part_n * part_size]
+            self.Config_random['cmb_seed'] = CMBseed[n+ part_n * part_size]
+            self.Config_random['dust_seed'] = Dustseed[n + part_n * part_size]
+            self.Config_random['syn_seed'] = Syncseed[n + part_n * part_size]
+            self.Config_random['ame_seed'] = AMEseed[n + part_n * part_size]
             cmb, total = self.__get_map()
             np.save(self.dir_cmb + "cmb" + str(n) + ".npy", cmb.astype(np.float32))
             np.save(
