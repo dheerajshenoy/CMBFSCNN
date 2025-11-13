@@ -13,7 +13,7 @@ class Plot_results(CMBFS_mode.Calculate_power_spectra):
         self.save_PS_dir
         self._creat_ps_file
 
-    def plot_predicted_sphere_map(self):
+    def plot_predicted_sphere_map(self, n=0):
         if self.is_half_split_map:
             pre_cmbQ = np.load(getattr(self, "output_Q_dir_1"))
             target_cmbQ = np.load(getattr(self, "target_Q_dir_1"))
@@ -42,7 +42,7 @@ class Plot_results(CMBFS_mode.Calculate_power_spectra):
             N_sample=0,
         )
 
-    def plot_predicted_flat_map(self):
+    def plot_predicted_flat_map(self, n=0):
         if self.is_half_split_map:
             pre_cmbQ = np.load(
                 getattr(self, "output_Qmap_dir") + "predicted_CMB_Q" + "_map_half_1.npy"
