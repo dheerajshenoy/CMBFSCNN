@@ -141,6 +141,9 @@ def plot_EEBB_PS(
     true_EE,
     out_denoise_BB,
     true_BB,
+    filename="power_EEBB.png",
+    dpi=300,
+    errors: dict = None,
 ):
     # title = "s5 d10 recovery using model trained on s1 d1 a2 data"
     plt.style.use("seaborn-v0_8-whitegrid")
@@ -182,11 +185,22 @@ def plot_EEBB_PS(
             ls="--",
             alpha=0.9,
         )
+
         ax1.set_ylabel(r"$D_{\ell}^{EE}$")
         ax1.set_xlabel(r"$\ell$")
         ax1.set_xlim(0, ell_max)
         ax1.set_yscale("log")
         ax1.legend(frameon=False)
+
+        err = out_EE - tar_EE
+
+        ax1.fill_between(
+            ell,
+            out_EE - err,
+            out_EE + err,
+            color="#1f77b4",
+            alpha=0.15,
+        )
 
         # --- BB (noisy) ---
         ax3 = axs[1, 0]
@@ -208,6 +222,16 @@ def plot_EEBB_PS(
         ax3.set_yscale("log")
         ax3.legend(frameon=False)
 
+        err = out_BB - tar_BB
+
+        ax3.fill_between(
+            ell,
+            out_BB - err,
+            out_BB + err,
+            color="#1f77b4",
+            alpha=0.15,
+        )
+
         # --- EE (denoised) ---
         ax2 = axs[0, 1]
         ax2.plot(ell, true_EE, label="True EE", color=color_true, lw=lw, alpha=0.9)
@@ -225,6 +249,16 @@ def plot_EEBB_PS(
         ax2.set_xlim(0, ell_max)
         ax2.set_yscale("log")
         ax2.legend(frameon=False)
+
+        err = out_denoise_EE - true_EE
+
+        ax2.fill_between(
+            ell,
+            out_denoise_EE - err,
+            out_denoise_EE + err,
+            color="#1f77b4",
+            alpha=0.15,
+        )
 
         # --- BB (denoised) ---
         ax4 = axs[1, 1]
@@ -244,6 +278,16 @@ def plot_EEBB_PS(
         ax4.set_yscale("log")
         ax4.legend(frameon=False)
 
+        err = out_denoise_BB - true_BB
+
+        ax4.fill_between(
+            ell,
+            out_denoise_BB - err,
+            out_denoise_BB + err,
+            color="#1f77b4",
+            alpha=0.15,
+        )
+
         # Add light gridlines and consistent tick spacing
         for ax in axs.flat:
             ax.grid(True, ls=":", lw=0.6, alpha=0.6)
@@ -259,8 +303,8 @@ def plot_EEBB_PS(
 
     fig.align_ylabels(axs[:, 1])
     plt.tight_layout()
-    plt.savefig("power.png", bbox_inches="tight")
-    # plt.show()
+    plt.savefig(filename, dpi=dpi)
+    plt.close(fig)
 
 
 def plot_EEBB_PS_err(
@@ -277,6 +321,8 @@ def plot_EEBB_PS_err(
     error_UU_1,
     error_QQ_2,
     error_UU_2,
+    filename="power_EEBB.png",
+    dpi=300,
 ):
     """Plot EE and BB power spectra with error bands and residuals."""
     plt.style.use("seaborn-v0_8-paper")
@@ -370,7 +416,7 @@ def plot_EEBB_PS_err(
 
     plt.subplots_adjust(left=0.08, right=0.96, bottom=0.07, top=0.95)
     fig.suptitle("EE and BB Power Spectrum Comparison", fontsize=14, fontweight="bold")
-    plt.savefig("power_EEBB_pretty_nobinning.png", dpi=300)
+    plt.savefig(filename, dpi=dpi)
     plt.close(fig)
 
 
@@ -384,50 +430,131 @@ def plot_QQUU_PS(
     true_QQ,
     out_denoise_UU,
     true_UU,
+    filename="power_QU.png",
+    dpi=300,
+    errors=False,
 ):
+    plt.style.use("seaborn-v0_8-whitegrid")
+
+    plt.rcParams.update(
+        {
+            "font.size": 11,
+            "axes.labelsize": 13,
+            "axes.titlesize": 14,
+            "legend.fontsize": 10,
+            "xtick.labelsize": 10,
+            "ytick.labelsize": 10,
+            "figure.dpi": 300,
+            "savefig.dpi": 300,
+            "axes.linewidth": 1.2,
+        }
+    )
+
+    color_true, color_noisy, color_recovered = "#1b9e77", "#7570b3", "#d95f02"
+    lw = 1.5
+
     def make_plot(axs):
-        box = dict(facecolor="yellow", pad=5, alpha=0.2)
-
-        # Fixing random state for reproducibility
-
+        # --- QQ noisy ---
         ax1 = axs[0, 0]
-        ax1.plot(ell, tar_QQ, label="Simulated noisy QQ", c="k")
-        ax1.plot(ell, out_QQ, label="Recovered noisy QQ", c="r")
-        ax1.set_ylabel("$D_{\ell}^{QQ}$", fontsize=10)
-        ax1.set_xlabel("$\ell$", fontsize=10)
-        ax1.set_xlim(0, 1500)
-        ax1.legend(loc="upper left", fontsize=7)
+        ax1.plot(ell, tar_QQ, label="Simulated noisy QQ", color=color_noisy, lw=lw)
+        ax1.plot(
+            ell,
+            out_QQ,
+            label="Recovered noisy QQ",
+            color=color_recovered,
+            lw=lw,
+            ls="--",
+        )
+        ax1.set_ylabel(r"$D_{\ell}^{QQ}$")
+        ax1.set_xlabel(r"$\ell$")
+        ax1.set_xlim(0, ell_max)
+        ax1.set_yscale("log")
+        ax1.legend(frameon=False)
 
+        # --- UU noisy ---
         ax3 = axs[1, 0]
-        ax3.plot(ell, tar_UU, label="Simulated noisy UU", c="k")
-        ax3.plot(ell, out_UU, label="Recovered noisy UU", c="r")
-        ax3.set_ylabel("$D_{\ell}^{UU}$", fontsize=10)
-        ax3.set_xlabel("$\ell$", fontsize=10)
-        ax3.set_xlim(0, 1500)
-        ax3.legend(loc="upper left", fontsize=7)
+        ax3.plot(ell, tar_UU, label="Simulated noisy UU", color=color_noisy, lw=lw)
+        ax3.plot(
+            ell,
+            out_UU,
+            label="Recovered noisy UU",
+            color=color_recovered,
+            lw=lw,
+            ls="--",
+        )
 
+        ax3.set_ylabel(r"$D_{\ell}^{UU}$")
+        ax3.set_xlabel(r"$\ell$")
+        ax3.set_xlim(0, ell_max)
+        ax3.set_yscale("log")
+        ax3.legend(frameon=False)
+
+        # --- QQ denoised ---
         ax2 = axs[0, 1]
-        ax2.plot(ell, true_QQ, label="True QQ", c="k")
-        ax2.plot(ell, out_denoise_QQ, label="Recovered QQ", c="r")
-        ax2.set_ylabel("$D_{\ell}^{QQ}$", fontsize=10)
-        ax2.set_xlabel("$\ell$", fontsize=10)
-        ax2.set_xlim(0, 1500)
-        ax2.legend(loc="upper left", fontsize=7)
+        ax2.plot(ell, true_QQ, label="True QQ", color=color_true, lw=lw)
+        ax2.plot(
+            ell,
+            out_denoise_QQ,
+            label="Recovered QQ",
+            color=color_recovered,
+            lw=lw,
+            ls="--",
+        )
+        ax2.set_xlabel(r"$\ell$")
+        ax2.set_xlim(0, ell_max)
+        ax2.set_yscale("log")
+        ax2.legend(frameon=False)
 
+        # --- UU denoised ---
         ax4 = axs[1, 1]
-        ax4.plot(ell, true_UU, label="True UU", c="k")
-        ax4.plot(ell, out_denoise_UU, label="Recovered UU", c="r")
-        ax4.set_ylabel("$D_{\ell}^{BB}$", fontsize=10)
-        ax4.set_xlabel("$\ell$", fontsize=10)
-        ax4.set_xlim(0, 1500)
-        ax4.legend(loc="upper left", fontsize=7)
+        ax4.plot(ell, true_UU, label="True UU", color=color_true, lw=lw)
+        ax4.plot(
+            ell,
+            out_denoise_UU,
+            label="Recovered UU",
+            color=color_recovered,
+            lw=lw,
+            ls="--",
+        )
+        ax4.set_xlabel(r"$\ell$")
+        ax4.set_xlim(0, ell_max)
+        ax4.set_yscale("log")
+        ax4.legend(frameon=False)
 
-    # Plot 1:
-    fig, axs = plt.subplots(2, 2)
-    fig.subplots_adjust(left=0.2, wspace=0.6, hspace=0.6)
+        if errors:
+            err = out_QQ - tar_QQ
+
+            ax1.fill_between(
+                ell, out_QQ - err, out_QQ + err, color="#1f77b4", alpha=0.15
+            )
+
+            err = (out_denoise_QQ - true_QQ)
+
+            ax2.fill_between(
+                ell, out_denoise_QQ - err, out_denoise_QQ + err, color="#1f77b4", alpha=0.15
+            )
+
+            err = out_UU - tar_UU
+
+            ax3.fill_between(
+                ell, out_UU - err, out_UU + err, color="#1f77b4", alpha=0.15
+            )
+
+            err = out_denoise_UU - true_UU
+
+            ax4.fill_between(
+                ell, out_denoise_UU - err, out_denoise_UU + err, color="#1f77b4", alpha=0.15
+            )
+
+        for ax in axs.flat:
+            ax.grid(True, ls=":", lw=0.6, alpha=0.6)
+            ax.tick_params(direction="in", length=4, width=1.0)
+
+    fig, axs = plt.subplots(2, 2, figsize=(8, 6))
+    fig.subplots_adjust(
+        left=0.1, right=0.97, top=0.95, bottom=0.1, wspace=0.3, hspace=0.3
+    )
     make_plot(axs)
-
-    # just align the last column of Axes:
     fig.align_ylabels(axs[:, 1])
-    plt.savefig("power.png")
-    # plt.show()
+    plt.savefig(filename, dpi=dpi)
+    plt.close(fig)
