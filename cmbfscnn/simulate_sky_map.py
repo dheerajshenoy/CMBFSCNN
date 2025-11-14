@@ -373,8 +373,6 @@ class Get_data(object):
         cl_BB = cmb_specs[3, :] / FACT
         cl_TE = cmb_specs[4, :] / FACT
 
-        import matplotlib.pyplot as plt
-
         cmb_T, cmb_Q, cmb_U = hp.synfast([cl_TT, cl_EE, cl_BB, cl_TE], self.Nside_exp, pol=True, new=True)
 
         sky_fg.components = [s, d, a]
@@ -421,13 +419,6 @@ class Get_data(object):
 
         total_downgrade = self.data_proce_beam(total_downgrade)
         cmb_downgrade = self.data_proce_beam(cmb_downgrade)
-
-        import matplotlib.pyplot as plt
-        print(cmb_downgrade.shape)
-        hp.mollview(cmb_downgrade[0, 0, :], title="CMB Map at {} GHz".format(self.freqs[0]), unit="uK", norm="hist")
-        plt.savefig("test.png")
-        plt.close()
-        exit(0)
 
         return cmb_downgrade, total_downgrade
 
