@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 
 import os
 import sys
@@ -366,20 +366,24 @@ class Get_data(object):
         randomize_dust(d, self.config_random)
         randomize_ame(a, self.config_random)
 
-        cl_TT = cmb_specs[:, 1]
-        cl_EE = cmb_specs[:, 2]
-        cl_BB = cmb_specs[:, 3]
-        cl_TE = cmb_specs[:, 4]
+        ell = cmb_specs[0, :]
+        FACT = (ell * (ell + 1)) / (2 * np.pi)
+        cl_TT = cmb_specs[1, :] / FACT
+        cl_EE = cmb_specs[2, :] / FACT
+        cl_BB = cmb_specs[3, :] / FACT
+        cl_TE = cmb_specs[4, :] / FACT
 
-        cmb_map = hp.synfast([cl_TT, cl_EE, cl_BB, cl_TE], self.Nside_exp, pol=True, new=True)
+        import matplotlib.pyplot as plt
+
+        cmb_T, cmb_Q, cmb_U = hp.synfast([cl_TT, cl_EE, cl_BB, cl_TE], self.Nside_exp, pol=True, new=True)
 
         sky_fg.components = [s, d, a]
 
         cmb = np.zeros((len(self.freqs), 3, 12 * self.Nside_exp**2), dtype=np.float32)
         for i in range(len(self.freqs)):
-            cmb[i, 0] = cmb_map[0]
-            cmb[i, 1] = cmb_map[1]
-            cmb[i, 2] = cmb_map[2]
+            cmb[i, 0] = cmb_T
+            cmb[i, 1] = cmb_Q
+            cmb[i, 2] = cmb_U
 
         foreground = np.zeros((len(self.freqs), 3, 12 * self.Nside_fg**2), dtype=np.float32)
         for i in range(len(self.freqs)):
@@ -417,6 +421,13 @@ class Get_data(object):
 
         total_downgrade = self.data_proce_beam(total_downgrade)
         cmb_downgrade = self.data_proce_beam(cmb_downgrade)
+
+        import matplotlib.pyplot as plt
+        print(cmb_downgrade.shape)
+        hp.mollview(cmb_downgrade[0, 0, :], title="CMB Map at {} GHz".format(self.freqs[0]), unit="uK", norm="hist")
+        plt.savefig("test.png")
+        plt.close()
+        exit(0)
 
         return cmb_downgrade, total_downgrade
 
